@@ -1,0 +1,4 @@
+- Minimize the loss manually 
+- Possibly avoid the robustness library 
+- Generating metamers before this library 
+- Try doing metamers 

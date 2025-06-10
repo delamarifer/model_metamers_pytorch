@@ -1,0 +1,8 @@
+/om2/user/dlatorre/anaconda3/envs/model_metamers_pytorch/lib/python3.8/site-packages/torchaudio/backend/utils.py:53: UserWarning: "sox" backend is being deprecated. The default backend will be changed to "sox_io" backend in 0.8.0 and "sox" backend will be removed in 0.9.0. Please migrate to "sox_io" backend. Please refer to https://github.com/pytorch/audio/issues/903 for the detail.
+  warnings.warn(
+Traceback (most recent call last):
+  File "make_metamers_wsj400_behavior_only_save_metamer_layers.py", line 491, in <module>
+    main()
+  File "make_metamers_wsj400_behavior_only_save_metamer_layers.py", line 475, in main
+    args.loss_function,
+AttributeError: 'Namespace' object has no attribute 'loss_function'

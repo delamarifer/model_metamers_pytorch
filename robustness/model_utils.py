@@ -1,181 +1,148 @@
-import torch as ch
-import dill
 import os
-from .tools import helpers, constants
-from .attacker import AttackerModel
+import dill
+import torch as ch
 
+# External / local imports ----------------------------------------------------
+from .attacker import AttackerModel            # robust audio Attacker wrapper
+from .tools import helpers, constants          # helpers provides Parameters, ckpt_at_epoch
+import cox                                     # experiment I/O
+
+# -----------------------------------------------------------------------------
+#                           SMALL HELPER CLASSES
+# -----------------------------------------------------------------------------
 class FeatureExtractor(ch.nn.Module):
-    '''
-    Tool for extracting layers from models.
-
-    Args:
-        submod (torch.nn.Module): model to extract activations from
-        layers (list of functions): list of functions where each function,
-            when applied to submod, returns a desired layer. For example, one
-            function could be `lambda model: model.layer1`.
-
-    Returns:
-        A model whose forward function returns the activations from the layers
-            corresponding to the functions in `layers` (in the order that the
-            functions were passed in the list).
-    '''
+    """Wraps a *submod* and exposes intermediate activations as output."""
     def __init__(self, submod, layers):
-        # layers must be in order
-        super(FeatureExtractor, self).__init__()
+        super().__init__()
         self.submod = submod
         self.layers = layers
-        self.n = 0
-
-        for layer_func in layers:
-            layer = layer_func(self.submod)
-            def hook(module, _, output):
-                module.register_buffer('activations', output)
-
-            layer.register_forward_hook(hook)
-
+        for fn in layers:
+            layer = fn(self.submod)
+            layer.register_forward_hook(lambda m, _i, o: m.register_buffer("activations", o))
     def forward(self, *args, **kwargs):
-        """
-        """
-        # self.layer_outputs = {}
         out = self.submod(*args, **kwargs)
-        activs = [layer_fn(self.submod).activations for layer_fn in self.layers]
+        activs = [fn(self.submod).activations for fn in self.layers]
         return [out] + activs
+
+# -----------------------------------------------------------------------------
+#                            CHECKPOINT LOADING
+# -----------------------------------------------------------------------------
+MISSING_AUDIO_BUFFERS = {
+    "preproc.audio_preproc.full_rep.rep.downsampling_op.downsample_filter",
+    "preproc.audio_preproc.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+    "preproc.audio_preproc.full_rep.rep.Cochleagram.downsampling.downsample_filter",
+    "attacker.preproc.audio_preproc.full_rep.rep.downsampling_op.downsample_filter",
+    "attacker.preproc.audio_preproc.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+    "attacker.preproc.audio_preproc.full_rep.rep.Cochleagram.downsampling.downsample_filter",
+}
+
+def _remap_state_dict(sd):
+    out = {}
+    for k, v in sd.items():
+        if k.startswith("model.0."):
+            nk = k.replace("model.0.", "preproc.audio_preproc.")
+        elif k.startswith("model.1."):
+            nk = k.replace("model.1.", "model.")
+        elif k.startswith("attacker.model.0."):
+            nk = k.replace("attacker.model.0.", "attacker.preproc.audio_preproc.")
+        elif k.startswith("attacker.model.1."):
+            nk = k.replace("attacker.model.1.", "attacker.model.")
+        elif k.startswith("model.full_rep."):
+            nk = k.replace("model.", "preproc.audio_preproc.", 1)
+        elif k.startswith("attacker.model.full_rep."):
+            nk = k.replace("attacker.model.", "attacker.preproc.audio_preproc.", 1)
+        else:
+            nk = k
+        out[nk] = v
+    return out
+
+# -----------------------------------------------------------------------------
+#                        PUBLIC FACTORY / LOADER
+# -----------------------------------------------------------------------------
 
 def make_and_restore_model(*_, arch, dataset, resume_path=None,
          parallel=True, pytorch_pretrained=False, strict=True,
          remap_checkpoint_keys={}, append_name_front_keys=None,
-         change_prefix_checkpoint={},
-         arch_kwargs={}):
-    """
-    Makes a model and (optionally) restores it from a checkpoint.
-
-    Args:
-        arch (str|nn.Module): Model architecture identifier or otherwise a
-            torch.nn.Module instance with the classifier
-        dataset (Dataset class [see datasets.py])
-        resume_path (str): optional path to checkpoint
-        parallel (bool): if True, wrap the model in a DataParallel 
-            (default True, recommended)
-        pytorch_pretrained (bool): if True, try to load a standard-trained 
-            checkpoint from the torchvision library (throw error if failed)
-        strict (bool): If true, the state dict must exactly match, if False
-            loading ignores non-matching keys
-        remap_checkpoint_keys (dict): Modifies keys in the loaded state_dict 
-            to new names, so that we can load old models if the code has changed. 
-        append_name_front_keys (list): if not none, for each element of the list 
-            makes new keys in the state dict that have the element appended to the front
-            of the name. Useful for transfer models, if they were saved without the attacker model class. 
-        change_prefix_checkpoint (dict) : for each element {old_prefix:new_prefix},
-            checks the state dict for entries that start with old_prefix and changes
-            that portion of the key to new_prefix.
-    Returns: 
-        A tuple consisting of the model (possibly loaded with checkpoint), and the checkpoint itself
-    """
-    classifier_model = dataset.get_model(arch, pytorch_pretrained, arch_kwargs) if \
-                            isinstance(arch, str) else arch
-
-    model = AttackerModel(classifier_model, dataset)
-
-    # optionally resume from a checkpoint
+         change_prefix_checkpoint={}, arch_kwargs={}, model_type="standard"):
+    """Construct AttackerModel and (optionally) load a checkpoint."""
+    base_model = dataset.get_model(arch, pytorch_pretrained, arch_kwargs) if isinstance(arch, str) else arch
+    model      = AttackerModel(base_model, dataset)
     checkpoint = None
     if resume_path:
-        if os.path.isfile(resume_path):
-            print("=> loading checkpoint '{}'".format(resume_path))
-            checkpoint = ch.load(resume_path, pickle_module=dill)
-            
-            # Makes us able to load models saved with legacy versions
-            state_dict_path = 'model'
-            if not ('model' in checkpoint):
-                state_dict_path = 'state_dict'
-
-            try:
-                sd = checkpoint[state_dict_path]
-            except:
-                print('Missing state dict key %s from checkpoint. Assuming checkpoint is simply the state dictionary and we do not need a key'%state_dict_path)
-                sd = checkpoint
-
-            if append_name_front_keys is not None:
-                new_sd = {}
-                for key_idx in range(len(append_name_front_keys)):
-                    sd_temp = {'%s%s'%(append_name_front_keys[key_idx], k):v for k,v in sd.items()}
-                    new_sd.update(sd_temp)
-                sd = new_sd
-
-            sd = {k[len('module.'):]:v for k,v in sd.items()}
-
-            # The following blocks are used in specific cases where we are loading models that are trained with different
-            # module names than are used in this library.
-
-            # Load models if the keys changed slightly
-            for old_key, new_key in remap_checkpoint_keys.items():
-                print('mapping %s to %s'%(old_key, new_key))
-                if type(new_key) is list: # If there are multiple keys that should be the same value (ie with attacker model)
-                    for new_key_temp in new_key:
-                        sd[new_key_temp] = sd[old_key]
-                    del sd[old_key]
-                else:
-                    sd[new_key]=sd.pop(old_key)
-            # Swaps out a prefix
-            for old_prefix, new_prefix in change_prefix_checkpoint.items():
-                sd_keys_temp = list(sd.keys())
-                for sd_key in sd_keys_temp:
-                    if type(old_prefix)==int: # If we need to add prefix to EVERYTHING
-                        sd[new_prefix + sd_key] = sd[sd_key]
-                        del sd[sd_key]
-                    else:
-                        if sd_key.startswith(old_prefix):
-                            sd[new_prefix + sd_key.split(old_prefix)[-1]] = sd[sd_key]
-                            del sd[sd_key]
-
+        if not os.path.isfile(resume_path):
+            raise ValueError(f"=> No checkpoint found at '{resume_path}'")
+        print(f"=> loading checkpoint '{resume_path}'")
+        checkpoint = ch.load(resume_path, pickle_module=dill, map_location="cpu")
+        state_key = "model" if "model" in checkpoint else "state_dict"
+        sd = checkpoint.get(state_key, checkpoint)
+        # remove DataParallel prefix
+        sd = {k[len("module."):] if k.startswith("module.") else k: v for k, v in sd.items()}
+        # prepend optional prefixes
+        if append_name_front_keys:
+            aug = {}
+            for p in append_name_front_keys:
+                aug.update({p + k: v for k, v in sd.items()})
+            sd = aug
+        sd = _remap_state_dict(sd)
+        # manual remaps
+        for old, new in remap_checkpoint_keys.items():
+            if isinstance(new, list):
+                for nk in new: sd[nk] = sd[old]
+                del sd[old]
+            else:
+                sd[new] = sd.pop(old)
+        for old_pref, new_pref in change_prefix_checkpoint.items():
+            for k in list(sd.keys()):
+                if isinstance(old_pref, int) or k.startswith(old_pref):
+                    nk = (new_pref + k) if isinstance(old_pref, int) else new_pref + k[len(old_pref):]
+                    sd[nk] = sd.pop(k)
+        print("=> first 10 remapped keys:", list(sd.keys())[:10])
+        try:
             model.load_state_dict(sd, strict=strict)
-            if parallel:
-                model = ch.nn.DataParallel(model)
-            model = model.cuda()
- 
-            print("=> loaded checkpoint '{}' (epoch {})".format(resume_path, checkpoint.get('epoch', 'epoch number not found')))
-        else:
-            error_msg = "=> no checkpoint found at '{}'".format(resume_path)
-            raise ValueError(error_msg)
-
+        except RuntimeError as e:
+            if "Missing key(s) in state_dict" in str(e):
+                missing = {ln.strip() for ln in str(e).split("\n") if ln.strip().startswith("\"")}
+                if missing.issubset(MISSING_AUDIO_BUFFERS):
+                    print("=> only cochleagram buffers missing – retry with strict=False")
+                    model.load_state_dict(sd, strict=False)
+                else:
+                    raise
+            else:
+                raise
+        if parallel:
+            model = ch.nn.DataParallel(model)
+        model = model.cuda()
+        print(f"=> checkpoint loaded (epoch {checkpoint.get('epoch','?')})")
     return model, checkpoint
 
-def model_dataset_from_store(s, overwrite_params={}, which='last'):
-    '''
-    Given a store directory corresponding to a trained model, return the
-    original model, dataset object, and args corresponding to the arguments.
-    '''
-    # which options: {'best', 'last', integer}
-    if type(s) is tuple:
-        s, e = s
-        s = cox.store.Store(s, e, mode='r')
+# -----------------------------------------------------------------------------
+#               Convenience: recover model + dataset from a cox Store
+# -----------------------------------------------------------------------------
 
-    m = s['metadata']
-    df = s['metadata'].df
-
-    args = df.to_dict()
-    args = {k:v[0] for k,v in args.items()}
-    fns = [lambda x: m.get_object(x), lambda x: m.get_pickle(x)]
-    conds = [lambda x: m.schema[x] == s.OBJECT, lambda x: m.schema[x] == s.PICKLE]
-    for fn, cond in zip(fns, conds):
-        args = {k:(fn(v) if cond(k) else v) for k,v in args.items()}
-
+def model_dataset_from_store(store, overwrite_params=None, which="last"):
+    """Return (model, dataset, args) from a *cox* Store or (root, exp_name)."""
+    overwrite_params = overwrite_params or {}
+    if isinstance(store, tuple):
+        root, exp = store
+        store = cox.store.Store(root, exp, mode="r")
+    meta = store["metadata"]
+    df   = meta.df.to_dict()
+    args = {k: v[0] for k, v in df.items()}
+    for k in list(args.keys()):
+        if meta.schema[k] == store.OBJECT:
+            args[k] = meta.get_object(k)
+        elif meta.schema[k] == store.PICKLE:
+            args[k] = meta.get_pickle(k)
     args.update(overwrite_params)
-    args = Parameters(args)
-
-    data_path = os.path.expandvars(args.data)
-    if not data_path:
-        data_path = '/tmp/'
-
-    dataset = DATASETS[args.dataset](data_path)
-
-    if which == 'last':
-        resume = os.path.join(s.path, constants.CKPT_NAME)
-    elif which == 'best':
-        resume = os.path.join(s.path, constants.CKPT_NAME_BEST)
+    args = helpers.Parameters(args)
+    data_path = os.path.expandvars(args.data) or "/tmp/"
+    dataset   = DATASETS[args.dataset](data_path)
+    if which == "last":
+        ckpt_path = os.path.join(store.path, constants.CKPT_NAME)
+    elif which == "best":
+        ckpt_path = os.path.join(store.path, constants.CKPT_NAME_BEST)
     else:
-        assert isinstance(which, int), "'which' must be one of {'best', 'last', int}"
-        resume = os.path.join(s.path, ckpt_at_epoch(which))
-
+        ckpt_path = os.path.join(store.path, helpers.ckpt_at_epoch(which))
     model, _ = make_and_restore_model(arch=args.arch, dataset=dataset,
-                                      resume_path=resume, parallel=False)
+                                      resume_path=ckpt_path, parallel=False)
     return model, dataset, args

@@ -1,0 +1,18 @@
+/om2/user/dlatorre/anaconda3/envs/model_metamers_pytorch/lib/python3.8/site-packages/torchaudio/backend/utils.py:53: UserWarning: "sox" backend is being deprecated. The default backend will be changed to "sox_io" backend in 0.8.0 and "sox" backend will be removed in 0.9.0. Please migrate to "sox_io" backend. Please refer to https://github.com/pytorch/audio/issues/903 for the detail.
+  warnings.warn(
+Traceback (most recent call last):
+  File "make_metamers_wsj400_behavior_only_save_metamer_layers.py", line 489, in <module>
+    main()
+  File "make_metamers_wsj400_behavior_only_save_metamer_layers.py", line 471, in main
+    run_audio_metamer_generation(
+  File "make_metamers_wsj400_behavior_only_save_metamer_layers.py", line 96, in run_audio_metamer_generation
+    model, ds, metamer_layers = build_network.main(return_metamer_layers=True,
+  File "/rdma/vast-rdma/vast/mcdermott/dlatorre/FORKED-REPO-METAMERS/model_metamers_pytorch/model_analysis_folders/audio_networks/A_MMS_cochresnet50_l2_1_cochleagram_multitask_robust/build_network.py", line 133, in main
+    model, ds, metamer_layers = build_net(include_rep_in_model=include_rep_in_model,
+  File "/rdma/vast-rdma/vast/mcdermott/dlatorre/FORKED-REPO-METAMERS/model_metamers_pytorch/model_analysis_folders/audio_networks/A_MMS_cochresnet50_l2_1_cochleagram_multitask_robust/build_network.py", line 31, in build_net
+    ds = NormanHaignereMcDermott(JSIN_PATH, include_rep_in_model=include_rep_in_model, 
+  File "/om2/user/dlatorre/FORKED-REPO-METAMERS/model_metamers_pytorch/robustness/datasets.py", line 380, in __init__
+    super(NormanHaignereMcDermott, self).__init__(ds_name, data_path, **ds_kwargs)
+  File "/om2/user/dlatorre/FORKED-REPO-METAMERS/model_metamers_pytorch/robustness/datasets.py", line 67, in __init__
+    assert set(required_args).issubset(set(kwargs.keys())), "Missing required args, only saw %s" % kwargs.keys()
+AssertionError: Missing required args, only saw dict_keys(['num_classes', 'mean', 'std', 'transform_train', 'transform_test', 'audio_kwargs', 'min_value', 'max_value'])

@@ -1,0 +1,147 @@
+Mon Jun  9 17:35:04 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.54.14              Driver Version: 550.54.14      CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce GTX 1080 Ti     On  |   00000000:82:00.0 Off |                  N/A |
+| 23%   34C    P8              9W /  250W |       1MiB /  11264MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+ds_kwargs inside build_network.main: {}
+Using model type: standard
+{} DSKWA
+ds_kwargs in build_net: {}
+=> loading checkpoint '/rdma/vast-rdma/vast/mcdermott/dlatorre/STAND/cochdnn/model_checkpoints/audio_rep_training_cochleagram_1/standard_training_word_and_audioset_and_speaker_decay_lr/542752d7-9849-49ff-b84a-6758a81585b4/5_checkpoint.pt'
+=> first 10 remapped keys: ['preproc.normalize.new_mean', 'preproc.normalize.new_std', 'preproc.audio_preproc.full_rep.rep.downsampling_op.downsample_filter', 'preproc.audio_preproc.full_rep.rep.Cochleagram.compute_subbands.coch_filters', 'preproc.audio_preproc.full_rep.rep.Cochleagram.downsampling.downsample_filter', 'model.conv1.weight', 'model.bn1.weight', 'model.bn1.bias', 'model.bn1.running_mean', 'model.bn1.running_var']
+=> checkpoint loaded (epoch 6)
+AudioCompose(
+    AudioToTensor()
+    CombineWithRandomDBSNR()
+    RMSNormalizeForegroundAndBackground()
+    UnsqueezeAudio()
+)
+Loading: million
+Original shape: (40000,)
+Transformed shape: torch.Size([1, 40000])
+Orig Audio Category Prediction: ['million']
+Step 0 | Layer input_after_preproc | Loss 0.967936
+Metamer shape for layer input_after_preproc: torch.Size([1, 40000])
+Step 1 | Layer input_after_preproc | Loss 0.880234
+Layer input_after_preproc, Synth Audio Category Prediction: ['million']
+Step 0 | Layer conv1 | Loss 0.969870
+Metamer shape for layer conv1: torch.Size([1, 40000])
+Step 1 | Layer conv1 | Loss 0.891179
+Layer conv1, Synth Audio Category Prediction: ['million']
+Step 0 | Layer bn1 | Loss 0.902118
+Metamer shape for layer bn1: torch.Size([1, 40000])
+Step 1 | Layer bn1 | Loss 0.851203
+Layer bn1, Synth Audio Category Prediction: ['million']
+Step 0 | Layer conv1_relu1 | Loss 0.902118
+Metamer shape for layer conv1_relu1: torch.Size([1, 40000])
+Step 1 | Layer conv1_relu1 | Loss 0.851203
+Layer conv1_relu1, Synth Audio Category Prediction: ['million']
+Step 0 | Layer maxpool1 | Loss 0.838705
+Metamer shape for layer maxpool1: torch.Size([1, 40000])
+Step 1 | Layer maxpool1 | Loss 0.789260
+Layer maxpool1, Synth Audio Category Prediction: ['million']
+Step 0 | Layer layer1 | Loss 2.029791
+Metamer shape for layer layer1: torch.Size([1, 40000])
+Step 1 | Layer layer1 | Loss 1.667943
+Layer layer1, Synth Audio Category Prediction: ['million']
+Step 0 | Layer layer2 | Loss 2.505081
+Metamer shape for layer layer2: torch.Size([1, 40000])
+Step 1 | Layer layer2 | Loss 2.009847
+Layer layer2, Synth Audio Category Prediction: ['million']
+Step 0 | Layer layer3 | Loss 1.929625
+Metamer shape for layer layer3: torch.Size([1, 40000])
+Step 1 | Layer layer3 | Loss 1.447739
+Layer layer3, Synth Audio Category Prediction: ['million']
+Step 0 | Layer layer4 | Loss 1.057023
+Metamer shape for layer layer4: torch.Size([1, 40000])
+Step 1 | Layer layer4 | Loss 1.089005
+Layer layer4, Synth Audio Category Prediction: ['million']
+Step 0 | Layer avgpool | Loss 1.002405
+Metamer shape for layer avgpool: torch.Size([1, 40000])
+Step 1 | Layer avgpool | Loss 0.945584
+Layer avgpool, Synth Audio Category Prediction: ['million']
+Step 0 | Layer final/signal/word_int | Loss 1.253582
+Metamer shape for layer final/signal/word_int: torch.Size([1, 40000])
+Step 1 | Layer final/signal/word_int | Loss 1.283373
+Layer final/signal/word_int, Synth Audio Category Prediction: ['million']
+Step 0 | Layer final/signal/speaker_int | Loss 1.261987
+Metamer shape for layer final/signal/speaker_int: torch.Size([1, 40000])
+Step 1 | Layer final/signal/speaker_int | Loss 1.285403
+Layer final/signal/speaker_int, Synth Audio Category Prediction: ['million']
+Step 0 | Layer final/noise/labels_binary_via_int | Loss 0.444669
+Metamer shape for layer final/noise/labels_binary_via_int: torch.Size([1, 40000])
+Step 1 | Layer final/noise/labels_binary_via_int | Loss 0.127611
+Layer final/noise/labels_binary_via_int, Synth Audio Category Prediction: ['million']
+Layer input_after_preproc
+{'spearman_rho': -0.12863854843158673, 'pearson_r': -0.13825565349493835, 'dB_SNR': 0.5540168285369873, 'norm_signal': 37.116947, 'norm_noise': 32.67161}
+Layer conv1
+{'spearman_rho': 0.7022254296480153, 'pearson_r': 0.46446469182782907, 'dB_SNR': 0.5003497749567032, 'norm_signal': 176.61084, 'norm_noise': 157.3919}
+Layer bn1
+{'spearman_rho': 0.56520743536323, 'pearson_r': 0.5089981424736716, 'dB_SNR': 0.6996677070856094, 'norm_signal': 533.3221, 'norm_noise': 453.96542}
+Layer conv1_relu1
+{'spearman_rho': 0.5652080141758556, 'pearson_r': 0.5089981384569102, 'dB_SNR': 0.6996677070856094, 'norm_signal': 533.3221, 'norm_noise': 453.96542}
+Layer maxpool1
+{'spearman_rho': 0.6366708924784996, 'pearson_r': 0.4776044521620185, 'dB_SNR': 1.027797907590866, 'norm_signal': 361.7649, 'norm_noise': 285.52664}
+Layer layer1
+{'spearman_rho': 0.18438922155578313, 'pearson_r': 0.04899924988934597, 'dB_SNR': -2.2218093276023865, 'norm_signal': 360.82977, 'norm_noise': 601.84314}
+Layer layer2
+{'spearman_rho': 0.08592378423604757, 'pearson_r': 0.02177928511336925, 'dB_SNR': -3.0316296219825745, 'norm_signal': 221.05354, 'norm_noise': 444.28375}
+Layer layer3
+{'spearman_rho': 0.2012963603664172, 'pearson_r': 0.10493638006640604, 'dB_SNR': -1.6069027781486511, 'norm_signal': 116.155266, 'norm_noise': 168.1625}
+Layer layer4
+{'spearman_rho': 0.287140847880291, 'pearson_r': 0.21507926500117777, 'dB_SNR': -0.3702983260154724, 'norm_signal': 418.84167, 'norm_noise': 456.12064}
+Layer avgpool
+{'spearman_rho': 0.5053029862726255, 'pearson_r': 0.3353819500325838, 'dB_SNR': 0.2430001087486744, 'norm_signal': 26.092615, 'norm_noise': 24.672752}
+Layer final/signal/word_int
+{'spearman_rho': 0.3224486415251362, 'pearson_r': 0.27057044703555955, 'dB_SNR': -1.0835304111242294, 'norm_signal': 73.75331, 'norm_noise': 94.65304}
+Layer final/signal/speaker_int
+{'spearman_rho': -0.3432708192169564, 'pearson_r': -0.3257527367849807, 'dB_SNR': -1.0903920978307724, 'norm_signal': 95.71316, 'norm_noise': 123.02995}
+Layer final/noise/labels_binary_via_int
+{'spearman_rho': 0.7646108455113897, 'pearson_r': 0.7994343531038267, 'dB_SNR': 8.941110372543335, 'norm_signal': 215.38654, 'norm_noise': 27.485746}
+Layer input_after_preproc, Image 0, Orig Word Category Prediction: million
+Layer input_after_preproc, Image 0, Synth Word Category Prediction: million
+Layer input_after_preproc, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer conv1, Image 0, Orig Word Category Prediction: million
+Layer conv1, Image 0, Synth Word Category Prediction: million
+Layer conv1, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer bn1, Image 0, Orig Word Category Prediction: million
+Layer bn1, Image 0, Synth Word Category Prediction: million
+Layer bn1, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer conv1_relu1, Image 0, Orig Word Category Prediction: million
+Layer conv1_relu1, Image 0, Synth Word Category Prediction: million
+Layer conv1_relu1, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer maxpool1, Image 0, Orig Word Category Prediction: million
+Layer maxpool1, Image 0, Synth Word Category Prediction: million
+Layer maxpool1, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer layer1, Image 0, Orig Word Category Prediction: million
+Layer layer1, Image 0, Synth Word Category Prediction: million
+Layer layer1, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer layer2, Image 0, Orig Word Category Prediction: million
+Layer layer2, Image 0, Synth Word Category Prediction: million
+Layer layer2, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer layer3, Image 0, Orig Word Category Prediction: million
+Layer layer3, Image 0, Synth Word Category Prediction: million
+Layer layer3, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer layer4, Image 0, Orig Word Category Prediction: million
+Layer layer4, Image 0, Synth Word Category Prediction: million
+Layer layer4, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer avgpool, Image 0, Orig Word Category Prediction: million
+Layer avgpool, Image 0, Synth Word Category Prediction: million
+Layer avgpool, Word 0, Label "million", Prediction Orig "million", Prediction Synth "__nullSignal__"
+Layer final/signal/word_int, Image 0, Orig Word Category Prediction: million
+Layer final/signal/word_int, Image 0, Synth Word Category Prediction: million
