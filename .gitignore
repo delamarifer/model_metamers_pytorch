@@ -56,4 +56,6 @@ Thumbs.db
 
 # === Experiment / Training Artifacts ===
 checkpoints/
-# Updated to ignore anaconda and cm directories
+
+# === Custom Exclusions ===
+MMS_Scripts/
