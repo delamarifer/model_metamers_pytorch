@@ -1,0 +1,59 @@
+# === Output & Log Files ===
+*.out
+*.err
+*.log
+*.lock
+slurm-*.out
+slurm-*.err
+
+# === Large Binary or Data Files ===
+*.pckl
+*.tar.bz2
+*.tar
+*.conda
+*.so
+*.wav
+*.mp3
+*.flac
+
+# === Large Directories / System Paths ===
+assets/
+.history/
+pkgs/
+cm/
+cm/shared/openmind/anaconda/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Virtual Environments ===
+venv/
+env/
+.env/
+
+# === Distribution / Packaging ===
+dist/
+build/
+*.egg-info/
+
+# === IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === OS Specific ===
+.DS_Store
+Thumbs.db
+
+# === Experiment / Training Artifacts ===
+checkpoints/
+# Updated to ignore anaconda and cm directories
