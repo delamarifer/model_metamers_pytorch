@@ -145,9 +145,17 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
             sd = {k: v for k, v in sd.items() if not any(
                 x in k for x in [
                     "full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "full_rep.rep.downsampling_op.downsample_filter",
+                    "full_rep.rep.Cochleagram.downsampling.downsample_filter",
                     "model.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "model.full_rep.rep.downsampling_op.downsample_filter",
+                    "model.full_rep.rep.Cochleagram.downsampling.downsample_filter",
                     "model.0.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
-                    "model.1.full_rep.rep.Cochleagram.compute_subbands.coch_filters"
+                    "model.0.full_rep.rep.downsampling_op.downsample_filter",
+                    "model.0.full_rep.rep.Cochleagram.downsampling.downsample_filter",
+                    "model.1.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "model.1.full_rep.rep.downsampling_op.downsample_filter",
+                    "model.1.full_rep.rep.Cochleagram.downsampling.downsample_filter"
                 ]
             )}
 
@@ -184,8 +192,8 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
                 if "Missing key(s) in state_dict" in str(e):
                     missing = {ln.strip() for ln in str(e).split("\n") if ln.strip().startswith("\"")}
                     if missing.issubset(MISSING_AUDIO_BUFFERS):
-                        print("=> only cochleagram buffers missing – retry with strict=False")
-                        model.load_state_dict(sd, strict=False)
+                        print("=> only cochleagram buffers missing – retry with strict=True")
+                        model.load_state_dict(sd, strict=True)
                     else:
                         raise
                 else:

@@ -224,35 +224,37 @@ class AudioToCochleagram(torch.nn.Module):
         self.sr = self.cgram_kwargs['sr']
         self.pad_factor = self.cgram_kwargs['pad_factor']
         self.use_rfft = self.cgram_kwargs['use_rfft']
+        self.persistent = self.cgram_kwargs.get('persistent', True)
 
         # Define cochlear filters
         self.coch_filter_kwargs = self.cgram_kwargs['coch_filter_kwargs']
         self.coch_filter_kwargs = {'use_rfft':self.use_rfft,
                                    'pad_factor':self.pad_factor,
                                    'filter_kwargs':self.coch_filter_kwargs}
- 
+
         self.make_coch_filters = self.cgram_kwargs['coch_filter_type']
         self.filters = self.make_coch_filters(self.signal_size,
-                                              self.sr, 
+                                              self.sr,
                                               **self.coch_filter_kwargs)
 
         # Define an envelope extraction operation
         self.env_extraction = self.cgram_kwargs['env_extraction_type']
-        self.envelope_extraction = self.env_extraction(self.signal_size, 
-                                                       self.sr, 
-                                                       self.use_rfft, 
+        self.envelope_extraction = self.env_extraction(self.signal_size,
+                                                       self.sr,
+                                                       self.use_rfft,
                                                        self.pad_factor)
 
         # Define a downsampling operation
         self.downsampling = self.cgram_kwargs['downsampling_type']
         self.env_sr = self.cgram_kwargs['env_sr']
         self.downsampling_kwargs = self.cgram_kwargs['downsampling_kwargs']
-        self.downsampling_op = self.downsampling(self.sr, self.env_sr, **self.downsampling_kwargs)
+        self.downsampling_op = self.downsampling(self.sr, self.env_sr, persistent=self.persistent, **self.downsampling_kwargs)
 
         # Compression is applied as a separate transform to be consistent with Spectrograms
-        cochleagram = chcochleagram.cochleagram.Cochleagram(self.filters, 
+        cochleagram = chcochleagram.cochleagram.Cochleagram(self.filters,
                                                             self.envelope_extraction,
                                                             self.downsampling_op,
+                                                            persistent=self.persistent,
                                                             compression=None)
 
         self.Cochleagram = cochleagram
