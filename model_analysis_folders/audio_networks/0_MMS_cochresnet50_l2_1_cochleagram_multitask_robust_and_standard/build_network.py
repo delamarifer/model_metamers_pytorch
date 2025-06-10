@@ -20,8 +20,24 @@ def build_net(include_rep_in_model=True,
     # used for eval scripts.  
 
     print(ds_kwargs,"DSKWA")
+    
+    # Determine which cochleagram configuration to use based on duration
+    duration = ds_kwargs.get('duration', 2)  # Default to 2 seconds if not specified
+    if duration == 2:
+        audio_representation = 'cochleagram_1'
+    elif duration == 3:
+        audio_representation = 'cochleagram_1_3_secs'
+    elif duration == 4:
+        audio_representation = 'cochleagram_1_4_secs'
+    elif duration == 7:
+        audio_representation = 'cochleagram_1_7_secs'
+    elif duration == 10:
+        audio_representation = 'cochleagram_1_10_secs'
+    else:
+        raise ValueError(f"Unsupported duration: {duration}. Supported durations are 2, 3, 4, 7, and 10 seconds.")
+    
     ds = jsinV3(JSIN_PATH, include_rep_in_model=include_rep_in_model, 
-                audio_representation='cochleagram_1',
+                audio_representation=audio_representation,
                 include_all_labels=True,
                 use_normalization_for_audio_rep=use_normalization_for_audio_rep, 
                 include_identity_sequential=include_identity_sequential, 

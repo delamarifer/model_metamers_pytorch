@@ -62,6 +62,87 @@ cochleagram_1 = {'rep_type': 'cochleagram',
                                         'power': 0.3}
                 }
 
+# Configuration for 3-second audio
+cochleagram_1_3_secs = {'rep_type': 'cochleagram',
+                 'rep_kwargs': {'signal_size':60000,  # 3 seconds at 20kHz
+                                'sr':20000,
+                                'env_sr': 200,
+                                'pad_factor':None,
+                                'use_rfft':True,
+                                'coch_filter_type': chcochleagram.cochlear_filters.ERBCosFilters,
+                                'coch_filter_kwargs': {
+                                    'n':50,
+                                    'low_lim':50,
+                                    'high_lim':10000,
+                                    'sample_factor':4,
+                                    'full_filter':False,
+                                    },
+                                'env_extraction_type': chcochleagram.envelope_extraction.HilbertEnvelopeExtraction,
+                                'downsampling_type': chcochleagram.downsampling.SincWithKaiserWindow,
+                                'downsampling_kwargs': {
+                                    'window_size':1001},
+                               },
+                 'compression_type': 'coch_p3',
+                 'compression_kwargs': {'scale': 1,
+                                        'offset':1e-8,
+                                        'clip_value': 5, # This wil clip cochleagram values < ~0.04
+                                        'power': 0.3}
+                }
+
+# Configuration for 4-second audio
+cochleagram_1_4_secs = {'rep_type': 'cochleagram',
+                 'rep_kwargs': {'signal_size':80000,  # 4 seconds at 20kHz
+                                'sr':20000,
+                                'env_sr': 200,
+                                'pad_factor':None,
+                                'use_rfft':True,
+                                'coch_filter_type': chcochleagram.cochlear_filters.ERBCosFilters,
+                                'coch_filter_kwargs': {
+                                    'n':50,
+                                    'low_lim':50,
+                                    'high_lim':10000,
+                                    'sample_factor':4,
+                                    'full_filter':False,
+                                    },
+                                'env_extraction_type': chcochleagram.envelope_extraction.HilbertEnvelopeExtraction,
+                                'downsampling_type': chcochleagram.downsampling.SincWithKaiserWindow,
+                                'downsampling_kwargs': {
+                                    'window_size':1001},
+                               },
+                 'compression_type': 'coch_p3',
+                 'compression_kwargs': {'scale': 1,
+                                        'offset':1e-8,
+                                        'clip_value': 5, # This wil clip cochleagram values < ~0.04
+                                        'power': 0.3}
+                }
+
+# Configuration for 10-second audio
+cochleagram_1_10_secs = {'rep_type': 'cochleagram',
+                 'rep_kwargs': {'signal_size':200000,  # 10 seconds at 20kHz
+                                'sr':20000,
+                                'env_sr': 200,
+                                'pad_factor':None,
+                                'use_rfft':True,
+                                'coch_filter_type': chcochleagram.cochlear_filters.ERBCosFilters,
+                                'coch_filter_kwargs': {
+                                    'n':50,
+                                    'low_lim':50,
+                                    'high_lim':10000,
+                                    'sample_factor':4,
+                                    'full_filter':False,
+                                    },
+                                'env_extraction_type': chcochleagram.envelope_extraction.HilbertEnvelopeExtraction,
+                                'downsampling_type': chcochleagram.downsampling.SincWithKaiserWindow,
+                                'downsampling_kwargs': {
+                                    'window_size':1001},
+                               },
+                 'compression_type': 'coch_p3',
+                 'compression_kwargs': {'scale': 1,
+                                        'offset':1e-8,
+                                        'clip_value': 5, # This wil clip cochleagram values < ~0.04
+                                        'power': 0.3}
+                }
+
 # Same as cochleagram 1, but for 7 seconds of audio, as an example. 
 cochleagram_1_7_secs = {'rep_type': 'cochleagram',
                  'rep_kwargs': {'signal_size':140000,
@@ -93,5 +174,8 @@ cochleagram_1_7_secs = {'rep_type': 'cochleagram',
 AUDIO_INPUT_REPRESENTATIONS = {'log_mel_spec_0': log_mel_spec_0,
                                'mel_spec_0': mel_spec_0,
                                'cochleagram_1': cochleagram_1,
-                               'cochleagram_1_7_secs':cochleagram_1_7_secs,
+                               'cochleagram_1_3_secs': cochleagram_1_3_secs,
+                               'cochleagram_1_4_secs': cochleagram_1_4_secs,
+                               'cochleagram_1_7_secs': cochleagram_1_7_secs,
+                               'cochleagram_1_10_secs': cochleagram_1_10_secs,
                               }
