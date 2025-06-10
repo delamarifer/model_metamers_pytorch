@@ -17,6 +17,13 @@ MISSING_AUDIO_BUFFERS = {
 def _remap_state_dict(sd):
     out = {}
     for k, v in sd.items():
+        # Skip cochleagram filter parameters
+        if k in [
+            "preproc.audio_preproc.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+            "attacker.preproc.audio_preproc.full_rep.rep.Cochleagram.compute_subbands.coch_filters"
+        ]:
+            continue
+            
         if k.startswith("model.0."):
             nk = k.replace("model.0.", "preproc.audio_preproc.")
         elif k.startswith("model.1."):
@@ -134,6 +141,16 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
 
             sd = {k[len('module.'):]:v for k,v in sd.items()}
 
+            # Filter out cochleagram parameters before any renaming
+            sd = {k: v for k, v in sd.items() if not any(
+                x in k for x in [
+                    "full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "model.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "model.0.full_rep.rep.Cochleagram.compute_subbands.coch_filters",
+                    "model.1.full_rep.rep.Cochleagram.compute_subbands.coch_filters"
+                ]
+            )}
+
             # The following blocks are used in specific cases where we are loading models that are trained with different
             # module names than are used in this library.
 
@@ -171,9 +188,6 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
                         model.load_state_dict(sd, strict=False)
                     else:
                         raise
-                elif "size mismatch" in str(e) and any("coch_filters" in ln for ln in str(e).split("\n")):
-                    print("=> cochleagram filter size mismatch – retry with strict=False")
-                    model.load_state_dict(sd, strict=False)
                 else:
                     raise
 
