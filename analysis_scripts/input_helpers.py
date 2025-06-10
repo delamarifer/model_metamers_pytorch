@@ -603,7 +603,7 @@ def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None
         SR: Target sampling rate
         base_dir: Base directory containing the natural sounds dataset
         duration: Duration of the audio files to use (2, 3, 4, or 10 seconds)
-        subclip_idx: Index of the subclip to use (0-based). If None, uses all subclips.
+        subclip_idx: Index of the subclip to use (0-based). If None, uses first subclip.
                     For 2s duration: 0-4 (5 subclips)
                     For 3s duration: 0-2 (3 subclips)
                     For 4s duration: 0-1 (2 subclips)
@@ -643,58 +643,52 @@ def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None
         10: 1  # 0-10
     }
     
-    if subclip_idx is not None:
-        if subclip_idx >= max_subclips[duration]:
-            raise ValueError(f"Invalid subclip_idx {subclip_idx} for duration {duration}s. "
-                           f"Must be between 0 and {max_subclips[duration]-1}")
-        wav_files = [wav_files[subclip_idx]]
-    elif not wav_files:
+    if not wav_files:
         raise ValueError(f"No WAV files found for sound ID {WAV_IDX} in {duration}s dataset")
     
-    # Process all selected files
-    all_wavs = []
-    for wav_path in wav_files:
-        print(f"Loading: {wav_path}")
-        
-        # Load the audio file
-        SR_loaded, wav_f = scipy.io.wavfile.read(wav_path)
-        
-        # Convert to float32 if needed
-        if wav_f.dtype in ['int16', 'int32']:
-            wav_f = wav_f.astype(np.float32)
-        
-        # Convert to mono if stereo
-        if wav_f.ndim > 1:
-            wav_f = wav_f.mean(axis=1)
-        
-        # Resample if needed
-        if SR_loaded != SR:
-            print('RESAMPLING')
-            wav_f = resampy.resample(wav_f, SR_loaded, SR)
-            SR_loaded = SR
-        
-        wav_f = wav_f * preproc_scaled
-        
-        # Always mean subtract
-        wav_f = wav_f - np.mean(wav_f.ravel())
-        rms_clip = np.sqrt(np.mean(wav_f.ravel()**2))
-        
-        if rms_normalize is not None:
-            wav_f = wav_f/rms_clip*rms_normalize
-            rms = rms_normalize
-        else:
-            rms = rms_clip
-        
-        all_wavs.append(wav_f)
+    # If subclip_idx is None, use the first subclip
+    if subclip_idx is None:
+        subclip_idx = 0
     
-    # Concatenate all segments if multiple files were loaded
-    if len(all_wavs) > 1:
-        wav_f = np.concatenate(all_wavs)
+    if subclip_idx >= max_subclips[duration]:
+        raise ValueError(f"Invalid subclip_idx {subclip_idx} for duration {duration}s. "
+                       f"Must be between 0 and {max_subclips[duration]-1}")
+    
+    # Get the specific subclip file
+    wav_path = wav_files[subclip_idx]
+    print(f"Loading: {wav_path}")
+    
+    # Load the audio file
+    SR_loaded, wav_f = scipy.io.wavfile.read(wav_path)
+    
+    # Convert to float32 if needed
+    if wav_f.dtype in ['int16', 'int32']:
+        wav_f = wav_f.astype(np.float32)
+    
+    # Convert to mono if stereo
+    if wav_f.ndim > 1:
+        wav_f = wav_f.mean(axis=1)
+    
+    # Resample if needed
+    if SR_loaded != SR:
+        print('RESAMPLING')
+        wav_f = resampy.resample(wav_f, SR_loaded, SR)
+        SR_loaded = SR
+    
+    wav_f = wav_f * preproc_scaled
+    
+    # Always mean subtract
+    wav_f = wav_f - np.mean(wav_f.ravel())
+    rms_clip = np.sqrt(np.mean(wav_f.ravel()**2))
+    
+    if rms_normalize is not None:
+        wav_f = wav_f/rms_clip*rms_normalize
+        rms = rms_normalize
     else:
-        wav_f = all_wavs[0]
+        rms = rms_clip
     
     # Get category from directory name
-    category_dir = os.path.basename(os.path.dirname(wav_files[0]))
+    category_dir = os.path.basename(os.path.dirname(wav_path))
 
     # Extract the category label (e.g., "crumpling_paper" from "0_stim102_crumpling_paper_orig_splits")
     match = re.match(r'\d+_stim\d+_(.+?)_orig', category_dir)
@@ -744,8 +738,8 @@ def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None
     audio_dict['word_int'] = WAV_IDX
     audio_dict['word'] = word_label
     audio_dict['rms'] = rms
-    audio_dict['filename'] = wav_files[0]
-    audio_dict['filename_short'] = os.path.basename(wav_files[0])
+    audio_dict['filename'] = wav_path
+    audio_dict['filename_short'] = os.path.basename(wav_path)
     audio_dict['correct_response'] = word_label
     audio_dict['duration'] = duration
     audio_dict['subclip_idx'] = subclip_idx
