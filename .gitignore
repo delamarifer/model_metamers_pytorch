@@ -14,6 +14,7 @@ slurm-*.err
 *.so
 *.wav
 *.mp3
+*.png
 *.flac
 
 # === Large Directories / System Paths ===
