@@ -21,20 +21,23 @@ def build_net(include_rep_in_model=True,
 
     print(ds_kwargs,"DSKWA")
     
-    # Determine which cochleagram configuration to use based on duration
-    duration = ds_kwargs.get('duration', 2)  # Default to 2 seconds if not specified
-    if duration == 2:
-        audio_representation = 'cochleagram_1'
-    elif duration == 3:
-        audio_representation = 'cochleagram_1_3_secs'
-    elif duration == 4:
-        audio_representation = 'cochleagram_1_4_secs'
-    elif duration == 7:
-        audio_representation = 'cochleagram_1_7_secs'
-    elif duration == 10:
-        audio_representation = 'cochleagram_1_10_secs'
-    else:
-        raise ValueError(f"Unsupported duration: {duration}. Supported durations are 2, 3, 4, 7, and 10 seconds.")
+    # Map durations to their corresponding cochleagram configurations
+    duration_to_config = {
+        2: 'cochleagram_1',
+        3: 'cochleagram_1_3_secs',
+        4: 'cochleagram_1_4_secs',
+        7: 'cochleagram_1_7_secs',
+        10: 'cochleagram_1_10_secs'
+    }
+    
+    # Get duration from kwargs, default to 2 seconds
+    duration = ds_kwargs.get('duration', 2)
+    
+    # Get the appropriate cochleagram configuration
+    if duration not in duration_to_config:
+        raise ValueError(f"Unsupported duration: {duration}. Supported durations are {', '.join(map(str, duration_to_config.keys()))} seconds.")
+    
+    audio_representation = duration_to_config[duration]
     
     ds = jsinV3(JSIN_PATH, include_rep_in_model=include_rep_in_model, 
                 audio_representation=audio_representation,
@@ -102,12 +105,15 @@ def build_net(include_rep_in_model=True,
     # Restore the model
     print(f"ds_kwargs in build_net: {ds_kwargs}")
 
+    # Remove duration from arch_kwargs since it's only for the dataset
+    arch_kwargs = {k: v for k, v in ds_kwargs.items() if k != 'duration'}
+
     model, _ = make_and_restore_model(arch='resnet_multi_task50', 
                                       dataset=ds, 
                                       parallel=False,
                                       resume_path=resume_path,
                                       strict=strict,
-                                      arch_kwargs=ds_kwargs,
+                                      arch_kwargs=arch_kwargs,
                                       model_type=model_type)
 
     # send the model to the GPU and return it. 
