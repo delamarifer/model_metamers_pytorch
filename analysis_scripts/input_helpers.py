@@ -7,6 +7,7 @@ import numpy as np
 from shutil import copyfile
 import glob
 import scipy
+import re
 try:
     from scipy.misc import imread, imresize
 except:
@@ -35,8 +36,12 @@ def generate_import_audio_functions(audio_func='psychophysicskell2018dry', prepr
     return partial(psychophysicskell2018dry_overlap_jsinv3, preproc_scaled=preproc_scaled, rms_normalize=rms_normalize, **kwargs)
   elif audio_func == 'psychophysics_wsj400_jsintest':
     return partial(psychophysics_wsj400_jsintest, preproc_scaled=preproc_scaled, rms_normalize=rms_normalize, **kwargs)
+  elif audio_func == 'natural_sounds_norman_haignere':
+    return partial(natural_sounds_norman_haignere, preproc_scaled=preproc_scaled, rms_normalize=rms_normalize, **kwargs)
   elif audio_func == 'load_specified_audio_path':
     return partial(use_audio_path_specified_audio, preproc_scaled=preproc_scaled, rms_normalize=rms_normalize, **kwargs)
+  else:
+    raise ValueError(f"Could not import audio function: {audio_func}")
 
 
 def psychophysicskell2018dry_overlap_jsinv3(WAV_IDX, preproc_scaled=1, rms_normalize=None, SR=20000):
@@ -586,3 +591,163 @@ def read_sound_file_list(filepath, remove_extension=False):
         for sound_idx, sound in enumerate(all_sounds):
             all_sounds[sound_idx] = sound.split('.')[0]
     return all_sounds
+
+def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None, SR=20000, base_dir=None, duration=2, subclip_idx=None):
+    """
+    Loads an example from the Norman-Haignere & McDermott 2018 natural sounds dataset.
+    
+    Args:
+        WAV_IDX: Index of the WAV file to load
+        preproc_scaled: Scale factor for preprocessing
+        rms_normalize: Target RMS value for normalization
+        SR: Target sampling rate
+        base_dir: Base directory containing the natural sounds dataset
+        duration: Duration of the audio files to use (2, 3, 4, or 10 seconds)
+        subclip_idx: Index of the subclip to use (0-based). If None, uses all subclips.
+                    For 2s duration: 0-4 (5 subclips)
+                    For 3s duration: 0-2 (3 subclips)
+                    For 4s duration: 0-1 (2 subclips)
+                    For 10s duration: 0 (1 subclip)
+    
+    Returns:
+        Dictionary containing the audio data and metadata
+    """
+    if base_dir is None:
+        base_dir = "/om2/user/dlatorre/FORKED-REPO-METAMERS/TO_COMMIT/model_metamers_pytorch/MMS_Scripts/Datasets_MMS/MMS_Datasets_Norman-Haignere_McDermott_2018"
+    
+    # Construct the path based on duration
+    duration_dir = f"{duration}SECS_Norman-Haignere_McDermott_2018_Stimuli"
+    full_base_dir = os.path.join(base_dir, duration_dir, "NATURAL")
+    
+    if not os.path.exists(full_base_dir):
+        raise ValueError(f"Directory not found: {full_base_dir}. Available durations are 2, 3, 4, and 10 seconds.")
+    
+    # Get all WAV files for the given sound ID
+    wav_files = []
+    for root, _, files in os.walk(full_base_dir):
+        for file in files:
+            if file.endswith('.wav'):
+                # Extract sound ID from filename (e.g., "0_stim102" from "0_stim102_crumpling_paper_orig_00_02.wav")
+                sound_id = file.split('_')[0]
+                if int(sound_id) == WAV_IDX:
+                    wav_files.append(os.path.join(root, file))
+    
+    # Sort files by their time segment (e.g., "00_02", "02_04", etc.)
+    wav_files.sort(key=lambda x: x.split('_')[-2])  # Sort by the first number in the time segment
+    
+    # Validate subclip_idx based on duration
+    max_subclips = {
+        2: 5,  # 0-2, 2-4, 4-6, 6-8, 8-10
+        3: 3,  # 0-3, 3-6, 6-9
+        4: 2,  # 0-4, 4-8
+        10: 1  # 0-10
+    }
+    
+    if subclip_idx is not None:
+        if subclip_idx >= max_subclips[duration]:
+            raise ValueError(f"Invalid subclip_idx {subclip_idx} for duration {duration}s. "
+                           f"Must be between 0 and {max_subclips[duration]-1}")
+        wav_files = [wav_files[subclip_idx]]
+    elif not wav_files:
+        raise ValueError(f"No WAV files found for sound ID {WAV_IDX} in {duration}s dataset")
+    
+    # Process all selected files
+    all_wavs = []
+    for wav_path in wav_files:
+        print(f"Loading: {wav_path}")
+        
+        # Load the audio file
+        SR_loaded, wav_f = scipy.io.wavfile.read(wav_path)
+        
+        # Convert to float32 if needed
+        if wav_f.dtype in ['int16', 'int32']:
+            wav_f = wav_f.astype(np.float32)
+        
+        # Convert to mono if stereo
+        if wav_f.ndim > 1:
+            wav_f = wav_f.mean(axis=1)
+        
+        # Resample if needed
+        if SR_loaded != SR:
+            print('RESAMPLING')
+            wav_f = resampy.resample(wav_f, SR_loaded, SR)
+            SR_loaded = SR
+        
+        wav_f = wav_f * preproc_scaled
+        
+        # Always mean subtract
+        wav_f = wav_f - np.mean(wav_f.ravel())
+        rms_clip = np.sqrt(np.mean(wav_f.ravel()**2))
+        
+        if rms_normalize is not None:
+            wav_f = wav_f/rms_clip*rms_normalize
+            rms = rms_normalize
+        else:
+            rms = rms_clip
+        
+        all_wavs.append(wav_f)
+    
+    # Concatenate all segments if multiple files were loaded
+    if len(all_wavs) > 1:
+        wav_f = np.concatenate(all_wavs)
+    else:
+        wav_f = all_wavs[0]
+    
+    # Get category from directory name
+    category_dir = os.path.basename(os.path.dirname(wav_files[0]))
+
+    # Extract the category label (e.g., "crumpling_paper" from "0_stim102_crumpling_paper_orig_splits")
+    match = re.match(r'\d+_stim\d+_(.+?)_orig', category_dir)
+    if match:
+        category_label = match.group(1)
+    else:
+        category_label = category_dir  # fallback
+
+    # Map to model label
+    category_to_word = {
+        'baby_crying': 'crying',
+        'piano': 'music',
+        'man_speaking': 'speaking',
+        'woman_speaking': 'speaking',
+        'violin': 'music',
+        'cello': 'music',
+        'saxophone': 'music',
+        'orchestra': 'music',
+        'big_band': 'music',
+        'contemporary_rb': 'music',
+        'country_song': 'music',
+        'latin_music': 'music',
+        'bluegrass': 'music',
+        'walking_on_leaves': 'walking',
+        'walking_with_heels': 'walking',
+        'typing': 'typing',
+        'writing_on_paper': 'writing',
+        'scratching': 'scratching',
+        'biting_and_chewing': 'eating',
+        'chopping_food': 'cooking',
+        'breathing': 'breathing',
+        'heart_beat': 'heart',
+        'clock_ticking': 'clock',
+        'chimes_in_the_wind': 'wind',
+        'crickets': 'insects',
+        'cicadas': 'insects',
+        'keys_jingling': 'keys',
+        'finger_tapping': 'tapping',
+        'siren': 'siren',
+        'crumpling_paper': 'paper'
+    }
+    word_label = category_to_word.get(category_label, 'sound')
+
+    audio_dict = {}
+    audio_dict['wav'] = wav_f
+    audio_dict['SR'] = SR
+    audio_dict['word_int'] = WAV_IDX
+    audio_dict['word'] = word_label
+    audio_dict['rms'] = rms
+    audio_dict['filename'] = wav_files[0]
+    audio_dict['filename_short'] = os.path.basename(wav_files[0])
+    audio_dict['correct_response'] = word_label
+    audio_dict['duration'] = duration
+    audio_dict['subclip_idx'] = subclip_idx
+
+    return audio_dict
