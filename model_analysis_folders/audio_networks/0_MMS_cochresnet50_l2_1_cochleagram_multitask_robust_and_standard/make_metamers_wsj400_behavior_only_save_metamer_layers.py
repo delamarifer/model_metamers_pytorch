@@ -93,10 +93,12 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     #      audio_transforms.UnsqueezeAudio(dim=0),
     #      ])
     
+    # Pass duration through ds_kwargs
+    ds_kwargs = {'duration': duration}
+    
     model, ds, metamer_layers = build_network.main(return_metamer_layers=True,
                                                    include_identity_sequential=False,
-    #                                                ds_kwargs={'transform_test':TRANSFORMS_TEST_NO_BACKGROUND, 
-    #                                                          },
+                                                   ds_kwargs=ds_kwargs,
                                                    strict=STRICT,
                                                    model_type=model_type)
     

@@ -44,7 +44,7 @@ if [[ "$MODEL_TYPE" != "robust" && "$MODEL_TYPE" != "standard" ]]; then
 fi
 
 # Build the command with optional subclip index
-CMD="python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -I 1 -N 1 -M $MODEL_TYPE -F natural_sounds_norman_haignere --duration 3"
+CMD="python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -I 1 -N 1 -M $MODEL_TYPE -F natural_sounds_norman_haignere --duration 2"
 if [ ! -z "$SUBCLIP_IDX" ]; then
     CMD="$CMD --subclip_idx $SUBCLIP_IDX"
 fi
