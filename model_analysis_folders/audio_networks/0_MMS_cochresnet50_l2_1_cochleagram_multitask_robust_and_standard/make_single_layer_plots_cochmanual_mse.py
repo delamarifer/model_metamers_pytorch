@@ -39,39 +39,24 @@ from scipy.stats import pearsonr, spearmanr
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s", stream=sys.stdout)
 
-SAMPLE_RATE: int = 20_000
-
-METAMER_LAYERS: List[str] = [
-    "input_after_preproc",
-    "conv1",
-    "layer1",
-    "layer1_cumulative",
-    "layer2",
-    "layer2_cumulative",
-    "layer3_layer_1",
-    "layer3_layer_2",
-    "layer3_layer_3",
-    "layer3_layer_4",
-    "layer3_layer_5",
-    "layer3",
-    "layer3_cumulative",
-    "layer4_layer_1",
-    "layer4_layer_2",
-    "layer4",
-    "layer4_cumulative",
-    "avgpool",
-    "avgpool_cumulative",
-    "conv1_layer1_cumulative",
-    "conv1_layer4_cumulative",
-    "layer1_layer3_cumulative",
-    "layer1_layer4_cumulative",
-    "layer2_layer3_cumulative",
-    "layer2_layer4_cumulative",
-    "new_layer4_cumulative_layer1",
-    "combined_layer1_sub_layer4_layer_1",
-    "combined_conv1_sub_layer4_layer_1",
-    "combined_conv1_avgpool"
+# Define the layer order for sorting
+METAMER_LAYERS = [
+    'input_after_preproc',
+    'conv1',
+    'bn1',
+    'conv1_relu1',
+    'maxpool1',
+    'layer1',
+    'layer2',
+    'layer3',
+    'layer4',
+    'avgpool',
+    'final/signal/word_int',
+    'final/signal/speaker_int',
+    'final/noise/labels_binary_via_int',
 ]
+
+SAMPLE_RATE: int = 16000
 
 ###############################################################################
 # Utility helpers
@@ -92,9 +77,13 @@ def squared_mean_activations(layer: str, acts: torch.Tensor, *, loss_type: str) 
     if acts is None or isinstance(acts, dict):
         return None, 0
     if loss_type == "inversion_loss_layer" or "final" in layer:
-        return acts, acts.shape[1] * acts.shape[2]
+        if len(acts.shape) >= 3:
+            return acts, acts.shape[1] * acts.shape[2]
+        return acts, acts.numel()
     mean_sq = torch.mean(acts ** 2, dim=-1)
-    return mean_sq, mean_sq.shape[1] * mean_sq.shape[2]
+    if len(mean_sq.shape) >= 3:
+        return mean_sq, mean_sq.shape[1] * mean_sq.shape[2]
+    return mean_sq, mean_sq.numel()
 
 def pearson(a: np.ndarray, b: np.ndarray) -> float:
     return np.nan if a.size < 2 or b.size < 2 else pearsonr(a.ravel(), b.ravel())[0]
@@ -207,6 +196,13 @@ class MetamerProcessor:
         self.loss_type = loss_type
         self.r2_rows: List[Dict[str, str | float | int]] = []
         self.mse_rows: List[Dict[str, str | float | int]] = []
+        # Generate timestamp once during initialization
+        self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create the base output directory
+        self.plots_dir = self.out.parent / "plots"
+        self.model_prefix = "RESNET_STANDARD" if self.model_type == "standard" else "RESNET_ROBUST"
+        self.base_output_dir = self.plots_dir / f"metamers_{self.timestamp}" / self.model_prefix
+        ensure_dir(self.base_output_dir)
 
     def run(self) -> None:
         for pkl in self._discover_pickles():
@@ -215,12 +211,12 @@ class MetamerProcessor:
 
     def _discover_pickles(self) -> List[Path]:
         target = "all_metamers_pickle.pckl"
-        parent_filter = f"{self.sound_id}_SOUND_about" if self.sound_id is not None else None
+        parent_filter = f"{self.sound_id}_SOUND_" if self.sound_id is not None else None
         results = []
         for root, _, files in os.walk(self.base):
             if target in files:
                 p = Path(root) / target
-                if parent_filter is None or p.parent.name == parent_filter:
+                if parent_filter is None or p.parent.name.startswith(parent_filter):
                     results.append(p)
         logging.info("Found %d pickles", len(results))
         return sorted(results)
@@ -244,16 +240,30 @@ class MetamerProcessor:
     @staticmethod
     def _load(path: Path):
         with path.open("rb") as fh:
-            return pickle.load(fh)
+            return pickle.load(fh, encoding='bytes')
 
     def _common_layers(self, d1: dict, d2: Optional[dict]) -> List[str]:
         s1 = set(d1["all_outputs_out_dict"].keys())
         if d2 is None:
-            return sorted(s1, key=METAMER_LAYERS.index)
+            try:
+                return sorted(s1, key=METAMER_LAYERS.index)
+            except ValueError as e:
+                print("Available layers:", sorted(s1))
+                print("Expected layers:", METAMER_LAYERS)
+                raise e
         s2 = set(d2["all_outputs_out_dict"].keys())
         return sorted(s1 & s2, key=METAMER_LAYERS.index)
 
-    def _plot_layer(self, layer: str, d1: dict, d2: Optional[dict], origin: Path) -> None:
+    def _plot_layer(self, layer: str, d1: dict, d2: Optional[dict], p: Path) -> None:
+        # Replace any forward slashes in layer name with underscores
+        safe_layer = layer.replace('/', '_')
+        out_dir = self._derive_out_dir(p, layer)
+        ensure_dir(out_dir)
+
+        # Create figure with 7 subplots
+        fig, axs = plt.subplots(7, 1, figsize=(10, 35))
+        fig.suptitle(f"Layer: {layer}", fontsize=16)
+
         orig = d1["all_outputs_orig"]
         synth_dict = d1["all_outputs_out_dict"][layer]
         synth_coch = np.squeeze(synth_dict["input_after_preproc"][0].cpu().numpy())
@@ -274,7 +284,6 @@ class MetamerProcessor:
         filtered_layers = [l for l in common_layers if l in METAMER_LAYERS and l not in {"final", "avgpool_cumulative"}]
         common_layers_sorted = sorted(filtered_layers, key=METAMER_LAYERS.index)
 
-        fig, axs = plt.subplots(1, 7, figsize=(42, 5))
         # 0: Synth cochleagram
         axs[0].imshow(synth_coch, origin="lower", aspect="auto")
         axs[0].set_title(f"Synth – {layer}")
@@ -344,7 +353,7 @@ class MetamerProcessor:
             axs[5].set_axis_off()
         # 6: Loss plot
         ax_loss = axs[6]
-        loss_data = d1.get("all_losses", {}).get(layer, None)
+        loss_data = d1.get("all_losses_dict", {}).get(layer, None)
         if loss_data is not None and isinstance(loss_data, dict) and len(loss_data) > 0:
             iterations = list(loss_data.keys())
             loss_values = [loss_data[it].item() if hasattr(loss_data[it], 'item') else float(loss_data[it]) for it in iterations]
@@ -356,23 +365,28 @@ class MetamerProcessor:
         else:
             ax_loss.text(0.5, 0.5, 'No loss data', ha='center', va='center', fontsize=12)
             ax_loss.set_axis_off()
-        out_dir = self._derive_out_dir(origin, layer)
+        out_dir = self._derive_out_dir(p, layer)
         ensure_dir(out_dir)
         fig.tight_layout()
-        fig.savefig(out_dir / f"combined_activation_{layer}.png", dpi=300)
+        fig.savefig(out_dir / f"combined_activation_{safe_layer}.png", dpi=300)
         plt.close(fig)
         save_audio(synth_audio, out_dir / f"synth_audio_{layer}.wav")
 
     def _derive_out_dir(self, origin: Path, layer: str) -> Path:
-        # Get current timestamp in format YYYYMMDD_HHMMSS
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        return self.out / "RESNET_STANDARD" / origin.parent.name / f"output_rand_seed_{self.seed1}_{layer}_{timestamp}"
+        # Replace any forward slashes in layer name with underscores
+        safe_layer = layer.replace('/', '_')
+        # Create layer-specific directory under the base output directory
+        out_dir = self.base_output_dir / f"output_rand_seed_{self.seed1}_{safe_layer}"
+        # Ensure the directory exists
+        ensure_dir(out_dir)
+        return out_dir
 
     def _write_csv(self) -> None:
         if not self.r2_rows:
             logging.warning("No R² rows collected – skipping CSV export.")
             return
-        csv_dir = self.out.with_name(self.out.name + "_R2")
+        # Create a plots directory for CSVs too
+        csv_dir = self.out.parent / "plots" / "R2"
         ensure_dir(csv_dir)
         pd.DataFrame(self.r2_rows).to_csv(csv_dir / f"{self.sound_id}_activations_r2.csv", index=False)
         pd.DataFrame(self.mse_rows).to_csv(csv_dir / f"{self.sound_id}_activations_mse.csv", index=False)

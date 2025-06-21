@@ -45,9 +45,12 @@ echo "=== Configuration ==="
 echo "Sound ID: $SLURM_ARRAY_TASK_ID"
 echo "===================="
 
-# Get the run number from the job array ID
-RUN_NUMBER=$SLURM_ARRAY_JOB_ID
-export METAMER_RUN_NUMBER=$RUN_NUMBER
+# Use a fixed run number instead of job array ID
+# Change this to match your existing run number
+FIXED_RUN_NUMBER=41814329
+export METAMER_RUN_NUMBER=$FIXED_RUN_NUMBER
+
+echo "Using fixed run number: $FIXED_RUN_NUMBER"
 
 # Define random seeds to iterate through
 RANDOM_SEEDS=(42 123 456)
@@ -65,7 +68,7 @@ for RANDOM_SEED in "${RANDOM_SEEDS[@]}"; do
             echo "=== Processing $MODEL_TYPE model ==="
             
             # Create model-specific output directory with random seed
-            OUTPUT_DIR="plots/metamers_${MODEL_TYPE}_${RUN_NUMBER}_seed${RANDOM_SEED}"
+            OUTPUT_DIR="plots/metamers_${MODEL_TYPE}_${FIXED_RUN_NUMBER}_seed${RANDOM_SEED}"
             mkdir -p "$OUTPUT_DIR"
 
             echo "=== Directory Setup ==="
@@ -92,7 +95,7 @@ for RANDOM_SEED in "${RANDOM_SEEDS[@]}"; do
 
             echo "=== Finding Metamer Directory for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
             # Find the metamer directory for this run
-            METAMER_DIR="metamers_${RUN_NUMBER}"
+            METAMER_DIR="metamers_${FIXED_RUN_NUMBER}"
 
             if [ ! -d "$METAMER_DIR" ]; then
                 echo "Error: No metamer directory found for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED!"

@@ -185,6 +185,8 @@ class ResNet(nn.Module):
         x = self.layer4(x, fake_relu=fake_relu, no_relu=no_relu)
         if with_latent:
             all_outputs['layer4'] = x
+            all_outputs['layer4_cumulative'] = {layer: all_outputs[layer] for layer in ['conv1', 'layer1', 'layer2', 'layer3', 'layer4']}
+            all_outputs['conv1_layer4_cumulative'] = {layer: all_outputs[layer] for layer in ['conv1', 'layer4']}
 
         x = self.avgpool(x)
         if with_latent:

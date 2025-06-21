@@ -616,7 +616,7 @@ def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None
         base_dir = "/om2/user/dlatorre/FORKED-REPO-METAMERS/TO_COMMIT/model_metamers_pytorch/MMS_Scripts/Datasets_MMS/MMS_Datasets_Norman-Haignere_McDermott_2018"
     
     # Construct the path based on duration
-    duration_dir = f"{duration}SECS_Norman-Haignere_McDermott_2018_Stimuli"
+    duration_dir = f"{int(duration)}SECS_Norman-Haignere_McDermott_2018_Stimuli"
     full_base_dir = os.path.join(base_dir, duration_dir, "NATURAL")
     
     if not os.path.exists(full_base_dir):
@@ -697,40 +697,8 @@ def natural_sounds_norman_haignere(WAV_IDX, preproc_scaled=1, rms_normalize=None
     else:
         category_label = category_dir  # fallback
 
-    # Map to model label
-    category_to_word = {
-        'baby_crying': 'crying',
-        'piano': 'music',
-        'man_speaking': 'speaking',
-        'woman_speaking': 'speaking',
-        'violin': 'music',
-        'cello': 'music',
-        'saxophone': 'music',
-        'orchestra': 'music',
-        'big_band': 'music',
-        'contemporary_rb': 'music',
-        'country_song': 'music',
-        'latin_music': 'music',
-        'bluegrass': 'music',
-        'walking_on_leaves': 'walking',
-        'walking_with_heels': 'walking',
-        'typing': 'typing',
-        'writing_on_paper': 'writing',
-        'scratching': 'scratching',
-        'biting_and_chewing': 'eating',
-        'chopping_food': 'cooking',
-        'breathing': 'breathing',
-        'heart_beat': 'heart',
-        'clock_ticking': 'clock',
-        'chimes_in_the_wind': 'wind',
-        'crickets': 'insects',
-        'cicadas': 'insects',
-        'keys_jingling': 'keys',
-        'finger_tapping': 'tapping',
-        'siren': 'siren',
-        'crumpling_paper': 'paper'
-    }
-    word_label = category_to_word.get(category_label, 'sound')
+    # Always use "about" as the word label
+    word_label = "about"
 
     audio_dict = {}
     audio_dict['wav'] = wav_f
