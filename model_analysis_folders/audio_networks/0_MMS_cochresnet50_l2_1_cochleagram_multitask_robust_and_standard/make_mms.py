@@ -63,7 +63,7 @@ def calc_loss(model, inp, target, custom_loss, should_preproc=True):
 def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOMSEED, 
                                  STRICT, overwrite_pckl, step_size, NOISE_SCALE, 
                                  ITERATIONS, NUMREPITER, OVERRIDE_SAVE, MODEL_DIRECTORY,
-                                 model_type='robust', duration=2, subclip_idx=None, debug_loss=False, lr_decay=0.5):
+                                 model_type='robust', duration=2, subclip_idx=None, debug_loss=False, lr_decay=0.5, debug=False):
     if MODEL_DIRECTORY is None:
         import build_network
         MODEL_DIRECTORY = '' # use an empty string to append to saved files. 
@@ -256,7 +256,8 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
             pass
     
         (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep_clone, make_adv=True, **synth_kwargs, with_latent=True, fake_relu=True) 
-        print(f"Metamer shape for layer {layer_to_invert}: {xadv.shape}")
+        if debug:
+            print(f"Metamer shape for layer {layer_to_invert}: {xadv.shape}")
         this_loss, _ = calc_loss(model, xadv, invert_rep_clone, synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f'%(synth_kwargs['iterations'], layer_to_invert, this_loss), flush=True)
@@ -577,6 +578,7 @@ def main(raw_args=None):
     parser.add_argument('--subclip_idx', type=int, help='Index of the subclip to use (0-based). If not specified, uses all subclips.')
     parser.add_argument('--debug_loss', action='store_true', help='Enable debug mode for loss function')
     parser.add_argument('--lr_decay', type=float, default=0.5, help='Learning rate decay factor (default: 0.5)')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode for verbose output')
     
     if raw_args is None:
         args = parser.parse_args()
@@ -587,7 +589,7 @@ def main(raw_args=None):
                                 args.RANDOMSEED, args.STRICT, args.OVERWRITE_PCKL, 
                                 args.STEP_SIZE, args.NOISE_SCALE, args.ITERATIONS, 
                                 args.NUMREPITER, args.OVERRIDE_SAVE, args.MODEL_DIRECTORY,
-                                args.MODEL_TYPE, args.duration, args.subclip_idx, args.debug_loss, args.lr_decay)
+                                args.MODEL_TYPE, args.duration, args.subclip_idx, args.debug_loss, args.lr_decay, debug=getattr(args, 'debug', False))
                                  
 if __name__ == '__main__':
     main()
