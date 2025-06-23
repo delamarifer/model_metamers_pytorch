@@ -19,16 +19,17 @@ class FakeReLUM(nn.Module):
     def forward(self, x):
         return FakeReLU.apply(x)
 
-class SequentialWithArgs(ch.nn.Sequential):
+class SequentialWithArgs(nn.Sequential):
     def forward(self, input, *args, **kwargs):
-        vs = list(self._modules.values())
-        l = len(vs)
-        for i in range(l):
-            if i == l-1:
-                input = vs[i](input, *args, **kwargs)
+        intermediate_outputs = {}
+        out = input
+        for i, module in enumerate(self):
+            if isinstance(out, tuple):
+                out = module(*out, *args, **kwargs)
             else:
-                input = vs[i](input)
-        return input
+                out = module(out, *args, **kwargs)
+            intermediate_outputs[f'intermediate_layer_{i}'] = out
+        return out, intermediate_outputs
 
 class AudioInputRepresentation(ch.nn.Module):
     '''

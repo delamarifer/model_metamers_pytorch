@@ -173,17 +173,28 @@ class ResNet(nn.Module):
         if with_latent:
             all_outputs['maxpool1'] = x
 
-        x = self.layer1(x)
+        x, layer1_out = self.layer1(x)
         if with_latent:
+            for key, value in layer1_out.items():
+                all_outputs[f'layer1_{key}'] = value
             all_outputs['layer1'] = x
-        x = self.layer2(x)
+
+        x, layer2_out = self.layer2(x)
         if with_latent:
+            for key, value in layer2_out.items():
+                all_outputs[f'layer2_{key}'] = value
             all_outputs['layer2'] = x
-        x = self.layer3(x)
+
+        x, layer3_out = self.layer3(x)
         if with_latent:
+            for key, value in layer3_out.items():
+                all_outputs[f'layer3_{key}'] = value
             all_outputs['layer3'] = x
-        x = self.layer4(x, fake_relu=fake_relu, no_relu=no_relu)
+
+        x, layer4_out = self.layer4(x, fake_relu=fake_relu, no_relu=no_relu)
         if with_latent:
+            for key, value in layer4_out.items():
+                all_outputs[f'layer4_{key}'] = value
             all_outputs['layer4'] = x
             all_outputs['layer4_cumulative'] = {layer: all_outputs[layer] for layer in ['conv1', 'layer1', 'layer2', 'layer3', 'layer4']}
             all_outputs['conv1_layer4_cumulative'] = {layer: all_outputs[layer] for layer in ['conv1', 'layer4']}
@@ -204,6 +215,27 @@ class ResNet(nn.Module):
                 all_outputs['final'] = final
         
         if with_latent:
+            # Print the outputs in architectural order for each main block
+            print("=== Model outputs in architectural order ===")
+            print(f"input_after_preproc: {all_outputs['input_after_preproc'].shape}")
+            print(f"conv1: {all_outputs['conv1'].shape}")
+            print(f"bn1: {all_outputs['bn1'].shape}")
+            print(f"conv1_relu1: {all_outputs['conv1_relu1'].shape}")
+            print(f"maxpool1: {all_outputs['maxpool1'].shape}")
+            for block_name in ["layer1", "layer2", "layer3", "layer4"]:
+                num_submodules = len(getattr(self, block_name))
+                for i in range(num_submodules):
+                    key = f"{block_name}_intermediate_layer_{i}"
+                    if key in all_outputs:
+                        print(f"{key}: {all_outputs[key].shape}")
+                if block_name in all_outputs:
+                    print(f"{block_name}: {all_outputs[block_name].shape}")
+            print(f"avgpool: {all_outputs['avgpool'].shape}")
+            if 'final' in all_outputs:
+                if hasattr(all_outputs['final'], 'shape'):
+                    print(f"final: {all_outputs['final'].shape}")
+                else:
+                    print(f"final: {type(all_outputs['final'])}")
             return final, pre_out, all_outputs
         return final
 

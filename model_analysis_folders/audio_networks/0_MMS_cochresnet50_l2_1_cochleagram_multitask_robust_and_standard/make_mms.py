@@ -178,6 +178,9 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     # im_n_initialized = ((torch.rand_like(im)-0.5) * NOISE_SCALE ).detach().cpu().numpy()
     
     for layer_to_invert in metamer_layers:
+        if layer_to_invert not in all_outputs:
+            print(f"KeyError: {layer_to_invert} not found in all_outputs. Available keys: {list(all_outputs.keys())}")
+            continue
         # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
         synth_kwargs = {
             'custom_loss': custom_synthesis_losses.LOSSES[LOSS_FUNCTION](
@@ -227,7 +230,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
                 if not invert_rep:
                     raise ValueError(f"Layer {layer_to_invert} is a dictionary but no suitable tensor found. Available keys: {list(all_outputs[layer_to_invert].keys())}")
         else:
-        invert_rep = all_outputs[layer_to_invert].contiguous().view(all_outputs[layer_to_invert].size(0), -1)
+            invert_rep = all_outputs[layer_to_invert].contiguous().view(all_outputs[layer_to_invert].size(0), -1)
     
         # Do the optimization, and save the losses occasionally
         all_losses = {}
