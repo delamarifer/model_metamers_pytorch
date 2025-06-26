@@ -47,10 +47,12 @@ def build_net(include_rep_in_model=True,
                 **ds_kwargs) # Sequential will change the state dict names
 
     # Path to the network checkpoint to load
-    if model_type == 'robust':
-        resume_path = '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/robustness/fmri_comparison_networks/for_component_tests/cochresnet50_l2_1_robust_cochleagram_multitask_increase_audioset_weight/standard_training_word_and_audioset_and_speaker_decay_lr_l2_1_robust_training_increase_audioset_weight.pt'
-    else:  # standard
+    if model_type == 'standard':
         resume_path = '/rdma/vast-rdma/vast/mcdermott/dlatorre/STAND/cochdnn/model_checkpoints/audio_rep_training_cochleagram_1/standard_training_word_and_audioset_and_speaker_decay_lr/542752d7-9849-49ff-b84a-6758a81585b4/5_checkpoint.pt'
+    elif model_type == 'robust':
+        resume_path = '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/robustness/fmri_comparison_networks/for_component_tests/cochresnet50_l2_1_robust_cochleagram_multitask_increase_audioset_weight/standard_training_word_and_audioset_and_speaker_decay_lr_l2_1_robust_training_increase_audioset_weight.pt'
+    else:  # any other type
+        resume_path = None
 
     # Resnet50 Layers Used for Metamer Generation
     metamer_layers = [
@@ -61,12 +63,12 @@ def build_net(include_rep_in_model=True,
         #  'maxpool1',
         #  'layer1',
         #  'layer2',
-        #  'layer3',
+        'layer3',
         'layer4_intermediate_layer_1',
         'layer4_intermediate_layer_2',
          'layer4',
         #  'layer4_cumulative',
-         'conv1_layer4_cumulative',
+        #  'conv1_layer4_cumulative',
          'avgpool',
         #  'final/signal/word_int',
         #  'final/signal/speaker_int',

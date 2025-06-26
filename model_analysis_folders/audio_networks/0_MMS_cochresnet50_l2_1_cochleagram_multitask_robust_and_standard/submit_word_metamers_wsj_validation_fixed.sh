@@ -9,7 +9,7 @@
 #SBATCH --mem=16000
 #SBATCH --time=15:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=18,22,23,25 # Process specific sound categories for testing
+#SBATCH --array=0-7 # Array indices: 0-3 for robust (sound IDs 18,22,23,25), 4-7 for standard (sound IDs 18,22,23,25)
 #SBATCH --constraint=rocky8
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094,node097,node098,node038,node037
@@ -41,105 +41,122 @@ echo "=== GPU Information ==="
 nvidia-smi
 echo "======================"
 
+# Decode the array task ID to get sound ID and model type
+# Even indices (0,2,4,6): robust model
+# Odd indices (1,3,5,7): standard model
+SOUND_IDS=(18 22 23 25)
+
+# Even task IDs = robust, odd task IDs = standard
+if [ $((SLURM_ARRAY_TASK_ID % 2)) -eq 0 ]; then
+    MODEL_TYPE="robust"
+    SOUND_IDX=$((SLURM_ARRAY_TASK_ID / 2))
+else
+    MODEL_TYPE="standard"
+    SOUND_IDX=$((SLURM_ARRAY_TASK_ID / 2))
+fi
+
+SOUND_ID=${SOUND_IDS[$SOUND_IDX]}
+
 echo "=== Configuration ==="
-echo "Sound ID: $SLURM_ARRAY_TASK_ID"
+echo "Array Task ID: $SLURM_ARRAY_TASK_ID"
+echo "Sound ID: $SOUND_ID"
+echo "Model Type: $MODEL_TYPE"
 echo "===================="
 
-# Use a unique run number based on the current timestamp
-UNIQUE_RUN_NUMBER=$(date +%s)
+# Use SLURM job ID as the unique run number (without task ID)
+UNIQUE_RUN_NUMBER=$SLURM_ARRAY_JOB_ID
 export METAMER_RUN_NUMBER=$UNIQUE_RUN_NUMBER
 
-echo "Using unique run number: $UNIQUE_RUN_NUMBER"
+echo "Using SLURM job ID as run number: $UNIQUE_RUN_NUMBER"
+echo "METAMER_RUN_NUMBER environment variable: $METAMER_RUN_NUMBER"
+echo "SLURM_ARRAY_JOB_ID: $SLURM_ARRAY_JOB_ID"
+echo "SLURM_JOB_ID: $SLURM_JOB_ID"
 
 # Define random seeds to iterate through
-RANDOM_SEEDS=(7 0)
+RANDOM_SEEDS=(9 400 85)
 
 # Loop through subclips first, then random seeds
 for SUBCLIP_IDX in 0 1 2; do
     echo "=== Processing subclip $SUBCLIP_IDX ==="
     for RANDOM_SEED in "${RANDOM_SEEDS[@]}"; do
         echo "=== Processing Random Seed: $RANDOM_SEED ==="
-        # Process both model types
-        for MODEL_TYPE in "standard" "robust"; do
-            echo "=== Processing $MODEL_TYPE model ==="
-            
-            # Create model-specific output directory with random seed
-            OUTPUT_DIR="plots/metamers_${MODEL_TYPE}_${UNIQUE_RUN_NUMBER}_seed${RANDOM_SEED}"
-            mkdir -p "$OUTPUT_DIR"
+        echo "=== Processing $MODEL_TYPE model ==="
+        
+        # Create model-specific output directory with random seed
+        OUTPUT_DIR="plots/metamers_${MODEL_TYPE}_${UNIQUE_RUN_NUMBER}_seed${RANDOM_SEED}"
+        mkdir -p "$OUTPUT_DIR"
 
-            echo "=== Directory Setup ==="
-            echo "Output Directory: $OUTPUT_DIR"
-            echo "Current Directory: $(pwd)"
-            echo "======================"
+        echo "=== Directory Setup ==="
+        echo "Output Directory: $OUTPUT_DIR"
+        echo "Current Directory: $(pwd)"
+        echo "======================"
 
-            # Build the command with subclip index, random seed, and our loss function
-            CMD="python make_mms.py $SLURM_ARRAY_TASK_ID -I 1 -N 1 -M $MODEL_TYPE -F natural_sounds_norman_haignere --duration 3 -L time_averaged_inversion_loss_layer --subclip_idx $SUBCLIP_IDX -Z 0.1 --lr_decay 0.7 -R $RANDOM_SEED"
-            # CMD="python make_mms.py $SLURM_ARRAY_TASK_ID -I 1 -N 1 -M $MODEL_TYPE -F natural_sounds_norman_haignere --duration 3 -L time_averaged_inversion_loss_layer --subclip_idx $SUBCLIP_IDX -Z 1.0 --lr_decay 0.5 -R $RANDOM_SEED"
+        # Build the command with subclip index, random seed, and our loss function
+        CMD="python make_mms.py $SOUND_ID -I 3000 -N 8 -M $MODEL_TYPE -F natural_sounds_norman_haignere --duration 3 -L time_averaged_inversion_loss_layer --subclip_idx $SUBCLIP_IDX -Z 1.0 --lr_decay 0.5 -R $RANDOM_SEED"
 
-            echo "=== Running Metamer Generation for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
-            echo "Command: $CMD"
-            echo "================================="
+        echo "=== Running Metamer Generation for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
+        echo "Command: $CMD"
+        echo "================================="
 
-            # Record start time
-            MMS_START_TIME=$(date +%s)
-            echo "Start time: $(date -d @$MMS_START_TIME)"
+        # Record start time
+        MMS_START_TIME=$(date +%s)
+        echo "Start time: $(date -d @$MMS_START_TIME)"
 
-            # Run the metamer generation
-            $CMD
+        # Run the metamer generation
+        $CMD
 
-            # Record end time and compute elapsed
-            MMS_END_TIME=$(date +%s)
-            MMS_ELAPSED=$((MMS_END_TIME - MMS_START_TIME))
-            echo "End time: $(date -d @$MMS_END_TIME)"
-            echo "Elapsed time for MMS generation: ${MMS_ELAPSED} seconds"
+        # Record end time and compute elapsed
+        MMS_END_TIME=$(date +%s)
+        MMS_ELAPSED=$((MMS_END_TIME - MMS_START_TIME))
+        echo "End time: $(date -d @$MMS_END_TIME)"
+        echo "Elapsed time for MMS generation: ${MMS_ELAPSED} seconds"
 
-            # Check if metamer generation was successful
-            if [ $? -ne 0 ]; then
-                echo "Error: Metamer generation failed for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED with exit code $?"
-                continue  # Skip to next model type if this one fails
-            fi
+        # Check if metamer generation was successful
+        if [ $? -ne 0 ]; then
+            echo "Error: Metamer generation failed for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED with exit code $?"
+            continue  # Skip to next iteration if this one fails
+        fi
 
-            # --- Plotting section temporarily disabled ---
-            # echo "=== Finding Metamer Directory for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
-            # # Find the metamer directory for this run
-            # METAMER_DIR="metamers_${UNIQUE_RUN_NUMBER}"
+        # --- Plotting section temporarily disabled ---
+        # echo "=== Finding Metamer Directory for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
+        # # Find the metamer directory for this run
+        # METAMER_DIR="metamers_${UNIQUE_RUN_NUMBER}"
 
-            # if [ ! -d "$METAMER_DIR" ]; then
-            #     echo "Error: No metamer directory found for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED!"
-            #     echo "Current directory contents:"
-            #     ls -R
-            #     continue  # Skip to next model type if no directory found
-            # fi
+        # if [ ! -d "$METAMER_DIR" ]; then
+        #     echo "Error: No metamer directory found for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED!"
+        #     echo "Current directory contents:"
+        #     ls -R
+        #     continue  # Skip to next iteration if no directory found
+        # fi
 
-            # echo "Found metamer directory: $METAMER_DIR"
-            # echo "Directory contents:"
-            # ls -l "$METAMER_DIR"
-            # echo "================================"
+        # echo "Found metamer directory: $METAMER_DIR"
+        # echo "Directory contents:"
+        # ls -l "$METAMER_DIR"
+        # echo "================================"
 
-            # # Run the plotting script
-            # echo "=== Running Plotting Script for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
-            # PLOT_CMD="python make_single_layer_plots_cochmanual_mse.py \
-            #     --base_path \"$METAMER_DIR\" \
-            #     --output_folder \"$OUTPUT_DIR\" \
-            #     --rand_seed_1 $RANDOM_SEED \
-            #     --model_type \"$MODEL_TYPE\" \
-            #     --loss_type \"time_averaged_inversion_loss_layer\" \
-            #     --sound_id \"$SLURM_ARRAY_TASK_ID\""
+        # # Run the plotting script
+        # echo "=== Running Plotting Script for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
+        # PLOT_CMD="python make_single_layer_plots_cochmanual_mse.py \
+        #     --base_path \"$METAMER_DIR\" \
+        #     --output_folder \"$OUTPUT_DIR\" \
+        #     --rand_seed_1 $RANDOM_SEED \
+        #     --model_type \"$MODEL_TYPE\" \
+        #     --loss_type \"time_averaged_inversion_loss_layer\" \
+        #     --sound_id \"$SOUND_ID\""
 
-            # echo "Plotting command: $PLOT_CMD"
-            # echo "============================"
+        # echo "Plotting command: $PLOT_CMD"
+        # echo "============================"
 
-            # eval $PLOT_CMD
+        # eval $PLOT_CMD
 
-            # if [ $? -ne 0 ]; then
-            #     echo "Error: Plotting script failed for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED with exit code $?"
-            #     continue  # Skip to next model type if plotting fails
-            # fi
+        # if [ $? -ne 0 ]; then
+        #     echo "Error: Plotting script failed for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED with exit code $?"
+        #     continue  # Skip to next iteration if plotting fails
+        # fi
 
-            # echo "=== Analysis Complete for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
-            # echo "Results saved in: $OUTPUT_DIR"
-            # echo "========================"
-        done
+        # echo "=== Analysis Complete for $MODEL_TYPE, subclip $SUBCLIP_IDX, seed $RANDOM_SEED ==="
+        # echo "Results saved in: $OUTPUT_DIR"
+        # echo "========================"
     done
 done
 
