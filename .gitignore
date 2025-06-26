@@ -16,6 +16,7 @@ slurm-*.err
 *.mp3
 *.png
 *.flac
+*.csv
 
 # === Large Directories / System Paths ===
 assets/
