@@ -1,4 +1,5 @@
 name: model_metamers_pytorch
+prefix: /orcd/data/jhm/001/om2/dlatorre/anaconda3/envs/model_metamers_pytorch
 channels:
   - pytorch
   - nvidia
@@ -209,4 +210,3 @@ dependencies:
     - typing-extensions==4.13.2
     - urllib3==1.26.20
     - xmltodict==0.13.0
-prefix: /om2/user/dlatorre/anaconda3/envs/model_metamers_pytorch
