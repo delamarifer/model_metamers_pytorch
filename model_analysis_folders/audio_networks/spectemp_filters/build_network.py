@@ -5,7 +5,7 @@ from robustness.model_utils import make_and_restore_model
 from model_analysis_folders.all_model_info import JSIN_PATH, MODEL_BASE_PATH
 import os
 
-# Make a custom build script for audio_rep_training_cochleagram_1/l2_p1_robust_training
+# Make a custom build script for spectemp_filts_time_average_coch1
 def build_net(include_rep_in_model=True, 
               use_normalization_for_audio_rep=True, 
               ds_kwargs={}, 
@@ -16,38 +16,38 @@ def build_net(include_rep_in_model=True,
     # Build the dataset so that the number of classes and normalization 
     # is set appropriately. Not needed for metamer generation, but ds is 
     # used for eval scripts.  
-    
+
     print(ds_kwargs,"DSKWA")
     
-    # Map durations to their corresponding cochleagram configurations
+    # Map durations to their corresponding cochleagram configurations and dimensions
     duration_to_config = {
-        2: 'cochleagram_1',
-        3: 'cochleagram_1_3_secs',
-        4: 'cochleagram_1_4_secs',
-        7: 'cochleagram_1_7_secs',
-        10: 'cochleagram_1_10_secs'
+        2: ('cochleagram_1', (211, 390)),      # 2 seconds: 211 freq, 390 time bins
+        3: ('cochleagram_1_3_secs', (211, 585)),  # 3 seconds: 211 freq, 585 time bins  
+        4: ('cochleagram_1_4_secs', (211, 780)),  # 4 seconds: 211 freq, 780 time bins
+        7: ('cochleagram_1_7_secs', (211, 1365)), # 7 seconds: 211 freq, 1365 time bins
+        10: ('cochleagram_1_10_secs', (211, 1950)) # 10 seconds: 211 freq, 1950 time bins
     }
     
     # Get duration from kwargs, default to 2 seconds
     duration = ds_kwargs.get('duration', 2)
     
-    # Get the appropriate cochleagram configuration
+    # Get the appropriate cochleagram configuration and dimensions
     if duration not in duration_to_config:
         raise ValueError(f"Unsupported duration: {duration}. Supported durations are {', '.join(map(str, duration_to_config.keys()))} seconds.")
     
-    audio_representation = duration_to_config[duration]
+    audio_representation, coch_size = duration_to_config[duration]
     
     ds = jsinV3(JSIN_PATH, include_rep_in_model=include_rep_in_model, 
                 audio_representation=audio_representation,
-                include_all_labels=True,
                 use_normalization_for_audio_rep=use_normalization_for_audio_rep, 
                 include_identity_sequential=include_identity_sequential, 
+                eval_max=8,
                 **ds_kwargs) # Sequential will change the state dict names
 
     # Path to the network checkpoint to load
     resume_path = None
 
-    # Resnet Layers Used for Metamer Generation
+    # Spectemp Layers Used for Metamer Generation
     metamer_layers = [
          'input_after_preproc',
          'filtered_signal', 
@@ -57,17 +57,13 @@ def build_net(include_rep_in_model=True,
     ]
 
     # Restore the model
-    print(f"ds_kwargs in build_net: {ds_kwargs}")
-
-    # Remove duration from arch_kwargs since it's only for the dataset
-    arch_kwargs = {k: v for k, v in ds_kwargs.items() if k != 'duration'}
-
     model, _ = make_and_restore_model(arch='spectemp_filts_time_average_coch1', 
                                       dataset=ds, 
                                       parallel=False,
                                       resume_path=resume_path,
                                       strict=strict,
-                                      arch_kwargs=arch_kwargs)
+                                      arch_kwargs={'coch_size': coch_size}
+                                     )
 
     # send the model to the GPU and return it. 
     model.cuda()
@@ -82,7 +78,7 @@ def build_net(include_rep_in_model=True,
         return model, ds
 
 def main(include_rep_in_model=True,
-         use_normalization_for_audio_rep=True,
+         use_normalization_for_audio_rep=False,
          return_metamer_layers=False,
          include_identity_sequential=False,
          strict=True,

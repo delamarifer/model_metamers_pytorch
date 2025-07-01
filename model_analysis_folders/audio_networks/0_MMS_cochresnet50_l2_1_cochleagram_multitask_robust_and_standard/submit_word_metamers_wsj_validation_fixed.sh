@@ -7,9 +7,9 @@
 #SBATCH --output=output/metamers_%A_%a.out
 #SBATCH --error=output/metamers_%A_%a.err
 #SBATCH --mem=16000
-#SBATCH --time=15:00:00
+#SBATCH --time=25:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-7 # Array indices: 0-3 for robust (sound IDs 18,22,23,25), 4-7 for standard (sound IDs 18,22,23,25)
+#SBATCH --array=0-73 # Array indices: 0-36 for robust (sound IDs 0-36), 37-73 for standard (sound IDs 0-36)
 #SBATCH --constraint=rocky8
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094,node097,node098,node038,node037
@@ -42,17 +42,17 @@ nvidia-smi
 echo "======================"
 
 # Decode the array task ID to get sound ID and model type
-# Even indices (0,2,4,6): robust model
-# Odd indices (1,3,5,7): standard model
-SOUND_IDS=(18 22 23 25)
+# Indices 0-36: robust model (sound IDs 0-36)
+# Indices 37-73: standard model (sound IDs 0-36)
+SOUND_IDS=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36)
 
-# Even task IDs = robust, odd task IDs = standard
-if [ $((SLURM_ARRAY_TASK_ID % 2)) -eq 0 ]; then
+# Task IDs 0-36 = robust, task IDs 37-73 = standard
+if [ $SLURM_ARRAY_TASK_ID -le 36 ]; then
     MODEL_TYPE="robust"
-    SOUND_IDX=$((SLURM_ARRAY_TASK_ID / 2))
+    SOUND_IDX=$SLURM_ARRAY_TASK_ID
 else
     MODEL_TYPE="standard"
-    SOUND_IDX=$((SLURM_ARRAY_TASK_ID / 2))
+    SOUND_IDX=$((SLURM_ARRAY_TASK_ID - 37))
 fi
 
 SOUND_ID=${SOUND_IDS[$SOUND_IDX]}

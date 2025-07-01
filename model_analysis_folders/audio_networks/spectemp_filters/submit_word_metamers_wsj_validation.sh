@@ -72,7 +72,7 @@ echo "======================"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Build the command with the correct arguments
-CMD="python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -I 10 -N 1 -L coarse_define_spectemp_inversion_loss_layer -F natural_sounds_norman_haignere --duration $DURATION --debug_loss"
+CMD="python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -I 10 -N 1 -L coarse_define_spectemp_inversion_loss_layer"
 if [ ! -z "$SUBCLIP_IDX" ]; then
     CMD="$CMD --subclip_idx $SUBCLIP_IDX"
 fi
