@@ -54,7 +54,7 @@ def find_completed_combinations(metamers_path, run_number):
                 continue
             
             # Check each sound ID and subclip combination
-            for sound_id in range(37):  # 0-36
+            for sound_id in range(36):  # 0-35
                 for subclip_idx in [0, 1, 2]:
                     # Construct the expected directory name
                     sound_dir_name = "{}_SOUND_about_{}_subclip{}".format(sound_id, model_type.upper(), subclip_idx)
@@ -97,7 +97,7 @@ def analyze_combinations_status(metamers_path):
     
     # Define expected combinations
     expected_combinations = []
-    sound_ids = list(range(37))  # 0-36
+    sound_ids = list(range(36))  # 0-35
     model_types = ["robust", "standard"]
     random_seeds = [9, 400, 85]
     subclip_indices = [0, 1, 2]
