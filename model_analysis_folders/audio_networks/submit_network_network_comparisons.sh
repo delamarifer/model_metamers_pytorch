@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --time=01:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-20
+#SBATCH --array=0
 #SBATCH --constraint=11GB
 #SBATCH --partition=normal
 

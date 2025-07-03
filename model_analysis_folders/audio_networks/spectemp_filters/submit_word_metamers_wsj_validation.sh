@@ -3,13 +3,13 @@
 #SBATCH -p normal
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dlatorre@mit.edu
-#SBATCH --job-name=met_nhm2018_timeavg_debug
-#SBATCH --output=output/robust_timeavg_debug%A_%a.out
-#SBATCH --error=output/robust_timeavg_debug%A_%a.err
-#SBATCH --mem=4000
-#SBATCH --time=5:00:00
+#SBATCH --job-name=met_nhm2018_timeavg_standard
+#SBATCH --output=output/metamers_%A_%a.out
+#SBATCH --error=output/metamers_%A_%a.err
+#SBATCH --mem=16000
+#SBATCH --time=25:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0  # Adjust this based on number of files you want to process
+#SBATCH --array=0-35 # Array indices for standard model (sound IDs 0-36)
 #SBATCH --constraint=rocky8
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094,node097,node098,node038,node037
@@ -71,24 +71,21 @@ echo "======================"
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Build the command with the correct arguments
-CMD="python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -I 10 -N 1 -L coarse_define_spectemp_inversion_loss_layer"
-if [ ! -z "$SUBCLIP_IDX" ]; then
-    CMD="$CMD --subclip_idx $SUBCLIP_IDX"
-fi
+# Loop over subclip indices
+for SUBCLIP_IDX in 0 1 2; do
+    echo "=== Processing subclip $SUBCLIP_IDX ==="
+    CMD="python make_mms.py $SLURM_ARRAY_TASK_ID -I 3000 -N 8 -F natural_sounds_norman_haignere --duration 3 -L coarse_define_spectemp_inversion_loss_layer --subclip_idx $SUBCLIP_IDX"
+    echo "Command: $CMD"
+    $CMD
 
-echo "=== Running Metamer Generation ==="
-echo "Command: $CMD"
-echo "================================="
+    if [ $? -ne 0 ]; then
+        echo "Error: Metamer generation failed for subclip $SUBCLIP_IDX with exit code $?"
+        continue
+    fi
 
-# Run the metamer generation
-$CMD
+done
 
-# Check if metamer generation was successful
-if [ $? -ne 0 ]; then
-    echo "Error: Metamer generation failed with exit code $?"
-    exit 1
-fi
+echo "=== All subclips processed ==="
 
 echo "=== Finding Metamer Directory ==="
 # Find the most recent metamer directory

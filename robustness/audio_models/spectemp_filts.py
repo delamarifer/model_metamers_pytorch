@@ -54,30 +54,20 @@ class SpecTempFilterBank(nn.Module):
     """
     Spectro-Temporal filterbanks that are a model of primary auditory cortex. Inspired by Chi-Ru-Shamma 2002. 
     """
-    def __init__(self, N_F=None, N_T=None, signal_length_s=None):
+    def __init__(self, dynamic_nt=True):
 
         super(SpecTempFilterBank, self).__init__()
 
         self.use_rfft = True
 
-        # Use provided dimensions or default to original hardcoded values
-        if N_F is None:
-            self.N_F = 211  # Default frequency channels
-        else:
-            self.N_F = N_F
-            
-        if N_T is None:
-            self.N_T = 390  # Default time bins
-        else:
-            self.N_T = N_T
-            
-        # Use provided signal length or calculate from N_T
-        if signal_length_s is None:
-            self.SIGNAL_LENGTH_S = 2  # Default for 2-second audio
-        else:
-            self.SIGNAL_LENGTH_S = signal_length_s
-            
+        # TODO: HOW TO GET THE SIZE OF THE COCHLEAGRAM
+        # TODO: Make these inputs to the function
+        self.dynamic_nt = dynamic_nt
+        self.N_T = 590  # Default temporal size (will be overridden if dynamic_nt=True)
+        self.N_F = 211     
         self.ENV_SR = 200
+        self.SIGNAL_LENGTH_S = 3
+        self.N_F = 211 # Set this to be the number of frequency channels in the cochleagram
         self.sr_erb = 6 # Approximatey correct... #TODO: do full calculation
         self.sr_Hz = 200
         self.make_plots = False
@@ -93,24 +83,14 @@ class SpecTempFilterBank(nn.Module):
         # Make the lowest filter lowpass and the highest filter highpass (so that the full modulation spectrum is covered)
         self.low_and_highpass=True
 
-        # all_Hts is the fourier representation for each filter. This gets multiplied with the fourier representation
-        # of the cochleagram.
-        # spec_temp_freqs stores all of the filter frequency values
-        self.all_Hts_numpy, self.spec_temp_freqs = spectemp.make_Hts_filterbank(self.N_F,self.N_T, self.sr_Hz, self.sr_erb,
-                                                               temp_mod_rates=self.temp_mod_rates,
-                                                               spec_mod_rates=self.spec_mod_rates,
-                                                               make_plots=self.make_plots,
-                                                               zero_pad=self.zero_pad,
-                                                               low_and_highpass=self.low_and_highpass)
-        self.all_Hts_numpy = np.float32(self._split_real_imaginary(self.all_Hts_numpy))
-
-        # (pad_left, pad_right, pad_top, pad_bottom)
-        self.padding = nn.ConstantPad2d((0, self.zero_pad[0], 0, self.zero_pad[1]), 0)
-        # TODO: Make the apply filter step a pytorch module so that it gets registered appropriately!!!
-        self.apply_filt = ApplyFiltInFourier2D(self.all_Hts_numpy, self.N_F, self.N_T,
-                                               use_rfft=self.use_rfft, 
-                                               zero_pad=self.zero_pad,
-                                               )
+        # Initialize filterbank components (will be updated dynamically if needed)
+        self.all_Hts_numpy = None
+        self.spec_temp_freqs = None
+        self.padding = None
+        self.apply_filt = None
+        
+        # Create initial filterbank for default size
+        self._create_filterbank(self.N_T)
         self.square_real = SquareReal()
 #         self.rectify = HalfWaveRectify()
         # Downsample the power by a factor of 2
@@ -120,6 +100,12 @@ class SpecTempFilterBank(nn.Module):
 #         self.compute_power = ComplexAbsoluteValuePower()
 
     def forward(self, x, with_latent=False, fake_relu=False):
+        # Handle dynamic N_T if enabled
+        if self.dynamic_nt:
+            input_nt = x.shape[-1]  # Get temporal size from input
+            if self.all_Hts_numpy is None or input_nt != self.N_T:
+                self._create_filterbank(input_nt)
+        
         if with_latent:
             all_outputs = {}
 
@@ -153,6 +139,29 @@ class SpecTempFilterBank(nn.Module):
             return x, None, all_outputs
         else:
             return x
+
+    def _create_filterbank(self, nt):
+        """Create filterbank components for given temporal size"""
+        self.N_T = nt
+        self.zero_pad = (self.N_T*2, self.N_F)
+        
+        # all_Hts is the fourier representation for each filter. This gets multiplied with the fourier representation
+        # of the cochleagram.
+        # spec_temp_freqs stores all of the filter frequency values
+        self.all_Hts_numpy, self.spec_temp_freqs = spectemp.make_Hts_filterbank(self.N_F, self.N_T, self.sr_Hz, self.sr_erb,
+                                                               temp_mod_rates=self.temp_mod_rates,
+                                                               spec_mod_rates=self.spec_mod_rates,
+                                                               make_plots=self.make_plots,
+                                                               zero_pad=self.zero_pad,
+                                                               low_and_highpass=self.low_and_highpass)
+        self.all_Hts_numpy = np.float32(self._split_real_imaginary(self.all_Hts_numpy))
+
+        # (pad_left, pad_right, pad_top, pad_bottom)
+        self.padding = nn.ConstantPad2d((0, self.zero_pad[0], 0, self.zero_pad[1]), 0)
+        # TODO: Make the apply filter step a pytorch module so that it gets registered appropriately!!!
+        self.apply_filt = ApplyFiltInFourier2D(self.all_Hts_numpy, self.N_F, self.N_T,
+                                               use_rfft=self.use_rfft, 
+                                               zero_pad=self.zero_pad)
 
     # This is used for pytorch <1.8, before complex muliplication was used
     def _split_real_imaginary(self, complex_input):
@@ -273,14 +282,8 @@ class SpectTempFilts(nn.Module):
         """
         super(SpectTempFilts, self).__init__()
 
-        # Extract dimensions from coch_size (frequency, time)
-        N_F, N_T = coch_size
-        
-        # Calculate signal length from time dimension
-        # N_T = signal_length_s * env_sr, so signal_length_s = N_T / env_sr
-        signal_length_s = N_T / 200.0  # env_sr = 200
-        
-        self.spectempfilterbank = SpecTempFilterBank(N_F=N_F, N_T=N_T, signal_length_s=signal_length_s)
+        # Create spectemp filterbank with dynamic temporal sizing
+        self.spectempfilterbank = SpecTempFilterBank(dynamic_nt=True)
         self.time_average = time_average
         self.coch_size = coch_size
         self.num_spectemp_filts = self.spectempfilterbank.all_Hts_numpy.shape[0]
@@ -343,20 +346,16 @@ class SpectTempFilts(nn.Module):
         return final
         
        
-def spectemp_filts_time_average_coch1(pretrained=False, coch_size=None, **kwargs):
+def spectemp_filts_time_average_coch1(pretrained=False, **kwargs):
     """Spectrotemporal filterbank that acts on the cochleagram representation
     Includes a time average layer at the end
 
     Args:
-        pretrained (bool): If True, displays a progress bar of the download to stderr
-        coch_size (tuple): Size of the cochleagram (frequency, time). If None, uses default (211, 390)
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
     del pretrained # model checkpoint is not on model zoo
-    
-    # Use provided coch_size or default to original values
-    if coch_size is None:
-        coch_size = (211, 390)  # Default for 2-second audio
-        
+    # TODO: include the default spectemp parameters for this model
+    coch_size=(211,590)  # Updated for 3-second inputs (211 frequency channels, 590 temporal samples)
     model = SpectTempFilts(coch_size, time_average=True, linear_eval=True, **kwargs)
         
     return model

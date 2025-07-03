@@ -50,10 +50,10 @@ def build_net(include_rep_in_model=True,
     # Spectemp Layers Used for Metamer Generation
     metamer_layers = [
          'input_after_preproc',
-         'filtered_signal', 
-         'spectempfilter_power',
+        #  'filtered_signal', 
+        #  'spectempfilter_power',
          'avgpool',
-         'final',
+        #  'final',
     ]
 
     # Restore the model
