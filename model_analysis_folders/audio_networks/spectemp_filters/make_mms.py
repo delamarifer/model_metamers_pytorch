@@ -133,9 +133,19 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     # Get the run number from environment variable or default to 1
     run_number = os.environ.get('METAMER_RUN_NUMBER', '1')
     print(f"Creating metamer folder with run number: {run_number}")
+    # Set model_prefix based on model_type
+    if model_type == "standard":
+        model_prefix = "RESNET_STANDARD"
+    elif model_type == "robust":
+        model_prefix = "RESNET_ROBUST"
+    else:
+        model_prefix = "SPECTEMP_FILTERS"
     synth_name = INPUTAUDIOFUNCNAME+'_'+LOSS_FUNCTION + '_RS%d'%RANDOMSEED + '_I%d'%ITERATIONS + '_N%d'%NUMREPITER + '_LR%.3f'%step_size + '_DECAY%.3f'%lr_decay + '_' + model_type.upper()
     subclip_suffix = f'_subclip{subclip_idx}' if subclip_idx is not None else ''
-    base_filepath = os.path.join(MODEL_DIRECTORY, f'metamers_by_run/metamers_{run_number}/{synth_name}/{SIDX}_SOUND_{ds.label_mapping[int(targ[0].cpu().numpy())]}_{model_type.upper()}{subclip_suffix}/')
+    base_filepath = os.path.join(
+        MODEL_DIRECTORY,
+        f'metamers_by_run/metamers_{run_number}/{synth_name}/{SIDX}_SOUND_{ds.label_mapping[int(targ[0].cpu().numpy())]}_{model_prefix.split("_")[0]}{subclip_suffix}/'
+    )
     print(f"Base filepath: {base_filepath}")
     try:
         os.makedirs(base_filepath)

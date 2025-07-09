@@ -204,7 +204,7 @@ class MetamerProcessor:
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         # Create the base output directory
         self.plots_dir = self.out.parent / "plots"
-        self.model_prefix = "RESNET_STANDARD" if self.model_type == "standard" else "RESNET_ROBUST"
+        self.model_prefix = "RESNET_STANDARD" if self.model_type == "standard" elif self.model_type == "robust" else "SPECTEMP_FILTERS"
         self.base_output_dir = self.plots_dir / f"metamers_{self.timestamp}" / self.model_prefix
         ensure_dir(self.base_output_dir)
 

@@ -9,7 +9,7 @@
 #SBATCH --mem=16000
 #SBATCH --time=25:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-35 # Array indices for standard model (sound IDs 0-36)
+#SBATCH --array=5,6,7,30,31,32,35,36 # Array indices for standard model (sound IDs 0-36)
 #SBATCH --constraint=rocky8
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094,node097,node098,node038,node037
@@ -70,6 +70,10 @@ echo "======================"
 
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Set METAMER_RUN_NUMBER to the SLURM array job ID for unique run folders
+UNIQUE_RUN_NUMBER=$SLURM_ARRAY_JOB_ID
+export METAMER_RUN_NUMBER=$UNIQUE_RUN_NUMBER
 
 # Loop over subclip indices
 for SUBCLIP_IDX in 0 1 2; do

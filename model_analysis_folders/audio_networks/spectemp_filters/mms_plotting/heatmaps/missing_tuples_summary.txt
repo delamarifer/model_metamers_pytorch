@@ -1,0 +1,5 @@
+Missing tuples summary:
+Total missing combinations: 20
+Missing sound IDs: ['30', '31', '32', '35', '36', '4', '41', '5', '6', '7']
+Missing subclips: ['0', '1', '2']
+Missing random seeds: ['0']

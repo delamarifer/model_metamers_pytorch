@@ -4,12 +4,12 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dlatorre@mit.edu
 #SBATCH --job-name=met_nhm2018_timeavg
-#SBATCH --output=output/metamers_%A_%a.out
-#SBATCH --error=output/metamers_%A_%a.err
+#SBATCH --output=slurm_out/metamers_%A_%a.out
+#SBATCH --error=slurm_err/metamers_%A_%a.err
 #SBATCH --mem=16000
 #SBATCH --time=25:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-73 # Array indices: 0-36 for robust (sound IDs 0-36), 37-73 for standard (sound IDs 0-36)
+#SBATCH --array=2 # 28 sound IDs x 2 model types = 56 jobs (0-27 robust, 28-55 standard)
 #SBATCH --constraint=rocky8
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094,node097,node098,node038,node037
@@ -35,6 +35,8 @@ export PYTHONPATH=$REPO_ROOT:$REPO_ROOT/analysis_scripts:$PYTHONPATH
 
 # Create output directory
 mkdir -p output
+mkdir -p slurm_out
+mkdir -p slurm_err
 
 # Print GPU information for debugging
 echo "=== GPU Information ==="
@@ -42,20 +44,21 @@ nvidia-smi
 echo "======================"
 
 # Decode the array task ID to get sound ID and model type
-# Indices 0-36: robust model (sound IDs 0-36)
-# Indices 37-73: standard model (sound IDs 0-36)
-SOUND_IDS=(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36)
+# Indices 0-5: robust model (sound IDs 36-41)
+# Indices 6-11: standard model (sound IDs 36-41)
+MISSING_SOUND_IDS=(41)
+NUM_SOUNDS=${#MISSING_SOUND_IDS[@]}
 
-# Task IDs 0-36 = robust, task IDs 37-73 = standard
-if [ $SLURM_ARRAY_TASK_ID -le 36 ]; then
+# Task IDs 0-27 = robust, 28-55 = standard
+if [ $SLURM_ARRAY_TASK_ID -lt $NUM_SOUNDS ]; then
     MODEL_TYPE="robust"
     SOUND_IDX=$SLURM_ARRAY_TASK_ID
 else
     MODEL_TYPE="standard"
-    SOUND_IDX=$((SLURM_ARRAY_TASK_ID - 37))
+    SOUND_IDX=$((SLURM_ARRAY_TASK_ID - NUM_SOUNDS))
 fi
 
-SOUND_ID=${SOUND_IDS[$SOUND_IDX]}
+SOUND_ID=${MISSING_SOUND_IDS[$SOUND_IDX]}
 
 echo "=== Configuration ==="
 echo "Array Task ID: $SLURM_ARRAY_TASK_ID"
@@ -73,7 +76,7 @@ echo "SLURM_ARRAY_JOB_ID: $SLURM_ARRAY_JOB_ID"
 echo "SLURM_JOB_ID: $SLURM_JOB_ID"
 
 # Define random seeds to iterate through
-RANDOM_SEEDS=(9 400 85)
+RANDOM_SEEDS=(9 400)
 
 # Loop through subclips first, then random seeds
 for SUBCLIP_IDX in 0 1 2; do

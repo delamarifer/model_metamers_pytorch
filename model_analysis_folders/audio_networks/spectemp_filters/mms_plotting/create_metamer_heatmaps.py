@@ -365,7 +365,7 @@ def create_model_metric_heatmap(df: pd.DataFrame, output_dir: Path, model_type: 
         print(f"[DEBUG] Sample missing values (999): {first_row[first_row == 999].head().tolist()}")
 
     # Create heatmap
-    plt.figure(figsize=(dynamic_width, 10))  # Increase width for more columns
+    plt.figure(figsize=(dynamic_width, 10))  # Dynamic width based on number of columns
 
     if metric == 'r_squared':
         # Create a masked array to exclude 999 values from colorbar
