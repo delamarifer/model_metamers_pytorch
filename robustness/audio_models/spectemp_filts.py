@@ -54,20 +54,31 @@ class SpecTempFilterBank(nn.Module):
     """
     Spectro-Temporal filterbanks that are a model of primary auditory cortex. Inspired by Chi-Ru-Shamma 2002. 
     """
-    def __init__(self, dynamic_nt=True):
+    def __init__(self, dynamic_nt=True, N_F=None, N_T=None, signal_length_s=None):
 
         super(SpecTempFilterBank, self).__init__()
 
         self.use_rfft = True
 
-        # TODO: HOW TO GET THE SIZE OF THE COCHLEAGRAM
-        # TODO: Make these inputs to the function
+        # Use provided dimensions or default to original hardcoded values
         self.dynamic_nt = dynamic_nt
-        self.N_T = 590  # Default temporal size (will be overridden if dynamic_nt=True)
-        self.N_F = 211     
+        if N_F is None:
+            self.N_F = 211  # Default frequency channels
+        else:
+            self.N_F = N_F
+
+        if N_T is None:
+            self.N_T = 590  # Default time bins (3-second audio)
+        else:
+            self.N_T = N_T
+
+        # Use provided signal length or calculate from N_T
+        if signal_length_s is None:
+            self.SIGNAL_LENGTH_S = 3  # Default for 3-second audio
+        else:
+            self.SIGNAL_LENGTH_S = signal_length_s
+
         self.ENV_SR = 200
-        self.SIGNAL_LENGTH_S = 3
-        self.N_F = 211 # Set this to be the number of frequency channels in the cochleagram
         self.sr_erb = 6 # Approximatey correct... #TODO: do full calculation
         self.sr_Hz = 200
         self.make_plots = False
@@ -282,8 +293,11 @@ class SpectTempFilts(nn.Module):
         """
         super(SpectTempFilts, self).__init__()
 
-        # Create spectemp filterbank with dynamic temporal sizing
-        self.spectempfilterbank = SpecTempFilterBank(dynamic_nt=True)
+        # Extract dimensions from coch_size (frequency, time)
+        N_F, N_T = coch_size
+        signal_length_s = N_T / 200.0  # env_sr = 200
+
+        self.spectempfilterbank = SpecTempFilterBank(dynamic_nt=True, N_F=N_F, N_T=N_T, signal_length_s=signal_length_s)
         self.time_average = time_average
         self.coch_size = coch_size
         self.num_spectemp_filts = self.spectempfilterbank.all_Hts_numpy.shape[0]
@@ -346,16 +360,20 @@ class SpectTempFilts(nn.Module):
         return final
         
        
-def spectemp_filts_time_average_coch1(pretrained=False, **kwargs):
+def spectemp_filts_time_average_coch1(pretrained=False, coch_size=None, **kwargs):
     """Spectrotemporal filterbank that acts on the cochleagram representation
     Includes a time average layer at the end
 
     Args:
-        progress (bool): If True, displays a progress bar of the download to stderr
+        pretrained (bool): If True, displays a progress bar of the download to stderr
+        coch_size (tuple): Size of the cochleagram (frequency, time). If None, uses default (211, 390)
     """
     del pretrained # model checkpoint is not on model zoo
-    # TODO: include the default spectemp parameters for this model
-    coch_size=(211,590)  # Updated for 3-second inputs (211 frequency channels, 590 temporal samples)
+
+    # Use provided coch_size or default to 3-second audio
+    if coch_size is None:
+        coch_size = (211, 590)  # Default for 3-second audio (211 freq channels, 590 time bins)
+
     model = SpectTempFilts(coch_size, time_average=True, linear_eval=True, **kwargs)
         
     return model

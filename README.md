@@ -1,10 +1,54 @@
 [![DOI](https://zenodo.org/badge/498570644.svg)](https://zenodo.org/badge/latestdoi/498570644)
 
 Model metamers reveal divergent invariances between biological and artificial neural networks.<br>
-Feather, Leclerc, Mądry & McDermott. Nature Neuroscience (2023). 
+Feather, Leclerc, Mądry & McDermott. Nature Neuroscience (2023).
 ==============
 ![Model Metamer Generation, Human Experiments, and Example Visual Model Metamers](FigureExperimentLogic.png)
 ==============
+
+> **Fork note:** This repository is a fork of [jenellefeather/model_metamers_pytorch](https://github.com/jenellefeather/model_metamers_pytorch) with extensions by [Daniel de la Torre](https://github.com/delamarifer) for generating model metamers from natural sounds of varying durations using multi-task auditory models. See [Changes in this fork](#changes-in-this-fork) below.
+
+Changes in this fork
+====================
+
+The following extensions were made on top of the original Feather et al. 2023 codebase:
+
+### Multi-task ResNet architecture
+- Added `robustness/audio_models/resnet_multitask.py`: a ResNet variant with separate fully-connected heads for word classification, speaker identification, and audio-set classification (multi-task learning).
+- The forward pass records all intermediate layer activations (including per-block intermediates and cumulative layer dictionaries) when `with_latent=True`.
+
+### Time-averaged inversion loss
+- Added `TimeAveragedInversionLossLayer` in `robustness/custom_synthesis_losses.py`: a new metamer synthesis loss that computes L2 distance on time-averaged squared activations, supporting both single-layer and cumulative (multi-layer dictionary) targets.
+- Configurable layers to skip time-averaging (e.g., `input_after_preproc_cochleagrams`, `avgpool`, final task heads).
+
+### Multi-task jsinV3 loss
+- Added `robustness/audio_functions/jsinV3_loss_functions.py`: combined training loss across word (cross-entropy), audio-set (BCE), and speaker (cross-entropy) tasks with configurable weights.
+
+### Variable-duration natural sound support
+- Extended `robustness/audio_functions/audio_input_representations.py` with cochleagram configurations for 3-second, 4-second, and 10-second audio (in addition to the original 2-second and 7-second).
+- Added `natural_sounds_norman_haignere()` in `analysis_scripts/input_helpers.py` for loading Norman-Haignere & McDermott (2018) natural sounds with subclip indexing, resampling, and RMS normalization.
+
+### MMS metamer generation pipeline
+- Added `model_analysis_folders/audio_networks/0_MMS_cochresnet50_l2_1_cochleagram_multitask_robust_and_standard/make_mms.py`: main metamer generation script supporting robust vs. standard model comparison, variable stimulus durations, cumulative layer targets, and learning rate decay.
+- Includes `build_network.py` configuration for duration-aware CochResNet50 construction with multi-task loss parameters.
+
+### fMRI predictivity analysis
+- Added `fmri_predictivity_scripts/`: pipeline for extracting activations from 165 natural sounds across all metamer layers, saving features as HDF5, and running voxel-wise regression against fMRI data.
+
+### Improved checkpoint loading
+- Updated `robustness/model_utils.py` with automatic state dict key remapping for legacy checkpoint formats and filtering of expected missing cochleagram buffer keys.
+
+### SLURM job management
+- Added `MMS_Scripts/` with batch submission scripts for parallelized metamer generation across sound IDs, subclips, and model types, plus dataset validation utilities.
+
+### Behavioral analysis notebooks
+- Added notebooks for analyzing speaker and word recognition results across model conditions (robust vs. standard, varying optimization iterations) with split-half reliability analysis.
+
+### Word classification evaluation
+- Added `evaluate_word_classification.py`: validation script that checks model accuracy on the jsinV3 validation set before proceeding with metamer generation.
+
+---
+
 ## Contents
 * [Overview](#overview)
 * [Repo Directories](#repo-directories)
